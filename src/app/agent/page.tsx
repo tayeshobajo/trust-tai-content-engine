@@ -159,7 +159,12 @@ export default function AgentPage() {
   const [inputValue, setInputValue] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingId, setStreamingId] = useState<string | null>(null)
-  const [introTimestamp] = useState<number>(() => Date.now())
+  const [introTimestamp, setIntroTimestamp] = useState<number>(0)
+  useEffect(() => {
+    const t = Date.now()
+    const id = setTimeout(() => setIntroTimestamp(t), 0)
+    return () => clearTimeout(id)
+  }, [])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -399,9 +404,11 @@ export default function AgentPage() {
                         Hi Tai, I&apos;m your Content Agent. I know your voice, your strategy, and your audience.{" "}
                         <span className="font-semibold">What would you like to build today?</span>
                       </p>
-                      <p className="text-xs text-[#94A3B8] mt-1.5">
-                        {formatTime(introTimestamp)}
-                      </p>
+                      {introTimestamp > 0 && (
+                        <p className="text-xs text-[#94A3B8] mt-1.5">
+                          {formatTime(introTimestamp)}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
