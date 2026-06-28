@@ -16,83 +16,27 @@ import {
   Sparkles,
 } from "lucide-react"
 
-// ─── Mock data (static sections) ─────────────────────────────────────────────
+// ─── Static sections (populated from real data once available) ───────────────
 
-const weekPosts = [
-  {
-    id: 1,
-    day: "MON 6/30",
-    title: "The founder insight no one talks about: your biggest obstacle isn't what you think",
-    platforms: ["LinkedIn"],
-    category: "Founder Insight",
-    status: "Scheduled" as const,
-    time: "9:00 AM",
-    gradient: "from-blue-400 to-blue-600",
-  },
-  {
-    id: 2,
-    day: "TUE 7/1",
-    title: "What I learned building Trust Tai from zero — 3 things that actually moved the needle",
-    platforms: ["LinkedIn"],
-    category: "Behind the Scenes",
-    status: "Approved" as const,
-    time: "8:00 AM",
-    gradient: "from-purple-400 to-purple-600",
-  },
-  {
-    id: 3,
-    day: "WED 7/2",
-    title: "Your content strategy is broken — here's the 3-step fix most agencies won't tell you",
-    platforms: ["LinkedIn", "Instagram"],
-    category: "Client Education",
-    status: "Needs Review" as const,
-    time: "9:00 AM",
-    gradient: "from-amber-400 to-orange-500",
-  },
-  {
-    id: 4,
-    day: "THU 7/3",
-    title: "The roadmap to scaling a service business without burning out — week 1 update",
-    platforms: ["LinkedIn"],
-    category: "Offer Aligned",
-    status: "Draft" as const,
-    time: "10:00 AM",
-    gradient: "from-green-400 to-emerald-600",
-  },
-]
+// Week posts derive from the user's scheduled posts — no demo data
+const weekPosts: {
+  id: number
+  day: string
+  title: string
+  platforms: string[]
+  category: string
+  status: "Scheduled" | "Approved" | "Needs Review" | "Draft"
+  time: string
+  gradient: string
+}[] = []
 
-const recommendations = [
-  {
-    id: 1,
-    trigger: "LinkedIn quiet for 6 days",
-    action: "Create a founder insight post",
-    color: "blue" as const,
-  },
-  {
-    id: 2,
-    trigger: "Client Education category underused",
-    action: "Schedule 2 educational posts this week",
-    color: "amber" as const,
-  },
-  {
-    id: 3,
-    trigger: "Last 3 BTS posts above average engagement",
-    action: "Create 2 more behind-the-scenes posts",
-    color: "green" as const,
-  },
-  {
-    id: 4,
-    trigger: "No post supports Roadmap offer",
-    action: "Add an offer-aligned post to the queue",
-    color: "purple" as const,
-  },
-  {
-    id: 5,
-    trigger: "Winning post ready to repurpose",
-    action: "Turn top post into an email sequence",
-    color: "blue" as const,
-  },
-]
+// Agent recommendations — generated once real posts exist
+const recommendations: {
+  id: number
+  trigger: string
+  action: string
+  color: "blue" | "amber" | "green" | "purple"
+}[] = []
 
 const colorDotMap = {
   blue: "bg-blue-500",
@@ -118,6 +62,7 @@ const platformColors: Record<string, string> = {
 export default function DashboardPage() {
   const router = useRouter()
   const [modalOpen, setModalOpen] = useState(false)
+  const [allPosts, setAllPosts] = useState<Post[]>([])
 
   // Live approval queue from localStorage
   const approvalStatuses: string[] = ["Needs Review", "Needs Draft", "Needs Image", "Draft"]
@@ -132,11 +77,15 @@ export default function DashboardPage() {
   const [approvalItems, setApprovalItems] = useState<Post[]>(() => getApprovalItems())
 
   const loadApprovalItems = useCallback(() => {
-    setApprovalItems(getApprovalItems())
+    const posts = getPosts()
+    setAllPosts(posts)
+    setApprovalItems(posts.filter((p) => approvalStatuses.includes(p.status as string)).slice(0, 4))
   }, [getApprovalItems])
 
   useEffect(() => {
-    // Re-sync approval queue on visibility change (user returns to tab)
+    // Initial load
+    loadApprovalItems()
+    // Re-sync on visibility change (user returns to tab)
     const handleVisibility = () => {
       if (!document.hidden) loadApprovalItems()
     }
@@ -145,6 +94,9 @@ export default function DashboardPage() {
   }, [loadApprovalItems])
 
   const approvalCount = approvalItems.length
+  const scheduledCount = allPosts.filter((p) => p.status === "Scheduled").length
+  const categoriesUsed = new Set(allPosts.map((p) => p.category)).size
+  const TOTAL_CATEGORIES = 8
 
   return (
     <>
@@ -173,22 +125,22 @@ export default function DashboardPage() {
           <div className="grid grid-cols-4 gap-4 mb-8">
             <MetricCard
               title="Scheduled Posts"
-              value={18}
-              trend="↑12% vs last month"
+              value={scheduledCount}
+              trend={scheduledCount > 0 ? "Posts queued" : "No posts scheduled yet"}
               icon={CalendarDays}
               iconBgColor="#2563EB"
             />
             <MetricCard
               title="Content Coverage"
-              value="6 of 8 categories"
-              trend="↑2 categories vs last month"
+              value={allPosts.length > 0 ? `${categoriesUsed} of ${TOTAL_CATEGORIES} categories` : "—"}
+              trend={allPosts.length > 0 ? "Categories in use" : "Create posts to track coverage"}
               icon={Target}
               iconBgColor="#16A34A"
             />
             <MetricCard
               title="Growth This Month"
-              value="+312 followers"
-              trend="↑8% vs last month"
+              value="—"
+              trend="Connect LinkedIn to track"
               icon={TrendingUp}
               iconBgColor="#7C3AED"
             />
@@ -213,43 +165,55 @@ export default function DashboardPage() {
                   </h2>
                   <span className="text-xs text-[#64748B]">Week of Jun 30</span>
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {weekPosts.map((post) => (
-                    <div
-                      key={post.id}
-                      className="flex-shrink-0 w-52 bg-[#F8F9FB] rounded-xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                {weekPosts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
+                    <p className="text-sm text-[#64748B]">No posts scheduled this week yet.</p>
+                    <button
+                      onClick={() => setModalOpen(true)}
+                      className="mt-3 text-sm font-medium text-blue-600 hover:underline"
                     >
-                      <div className={`h-24 bg-gradient-to-br ${post.gradient}`} />
-                      <div className="p-3">
-                        <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">
-                          {post.day}
-                        </p>
-                        <p className="text-xs font-semibold text-[#0F172A] line-clamp-2 mb-2 leading-snug">
-                          {post.title}
-                        </p>
-                        <div className="flex items-center gap-1 mb-2">
-                          {post.platforms.map((p) => (
-                            <span
-                              key={p}
-                              className={`text-[10px] text-white px-1.5 py-0.5 rounded font-medium ${platformColors[p] ?? "bg-gray-400"}`}
-                            >
-                              {p === "LinkedIn" ? "LI" : "IG"}
+                      Create your first post
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-3 overflow-x-auto pb-2">
+                    {weekPosts.map((post) => (
+                      <div
+                        key={post.id}
+                        className="flex-shrink-0 w-52 bg-[#F8F9FB] rounded-xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                      >
+                        <div className={`h-24 bg-gradient-to-br ${post.gradient}`} />
+                        <div className="p-3">
+                          <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">
+                            {post.day}
+                          </p>
+                          <p className="text-xs font-semibold text-[#0F172A] line-clamp-2 mb-2 leading-snug">
+                            {post.title}
+                          </p>
+                          <div className="flex items-center gap-1 mb-2">
+                            {post.platforms.map((p) => (
+                              <span
+                                key={p}
+                                className={`text-[10px] text-white px-1.5 py-0.5 rounded font-medium ${platformColors[p] ?? "bg-gray-400"}`}
+                              >
+                                {p === "LinkedIn" ? "LI" : "IG"}
+                              </span>
+                            ))}
+                            <span className="text-[10px] text-[#94A3B8] bg-slate-100 px-1.5 py-0.5 rounded">
+                              {post.category}
                             </span>
-                          ))}
-                          <span className="text-[10px] text-[#94A3B8] bg-slate-100 px-1.5 py-0.5 rounded">
-                            {post.category}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <StatusBadge status={post.status} size="sm" />
-                          <span className="text-[10px] text-[#94A3B8]">
-                            {post.time}
-                          </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <StatusBadge status={post.status} size="sm" />
+                            <span className="text-[10px] text-[#94A3B8]">
+                              {post.time}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Agent Recommendations */}
@@ -260,25 +224,29 @@ export default function DashboardPage() {
                     Agent Recommendations
                   </h2>
                 </div>
-                <div className="space-y-3">
-                  {recommendations.map((rec) => (
-                    <div
-                      key={rec.id}
-                      className="flex items-start gap-3 p-3 rounded-lg bg-[#F8F9FB] hover:bg-gray-100 transition-colors cursor-pointer"
-                    >
+                {recommendations.length === 0 ? (
+                  <p className="text-xs text-[#94A3B8] py-4 text-center">Recommendations appear once you have posts in the system.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {recommendations.map((rec) => (
                       <div
-                        className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${colorDotMap[rec.color]}`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-[#94A3B8] mb-0.5">{rec.trigger}</p>
-                        <p className="text-sm font-medium text-[#0F172A]">{rec.action}</p>
+                        key={rec.id}
+                        className="flex items-start gap-3 p-3 rounded-lg bg-[#F8F9FB] hover:bg-gray-100 transition-colors cursor-pointer"
+                      >
+                        <div
+                          className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${colorDotMap[rec.color]}`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-[#94A3B8] mb-0.5">{rec.trigger}</p>
+                          <p className="text-sm font-medium text-[#0F172A]">{rec.action}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colorIconMap[rec.color]}`}>
+                          Act
+                        </span>
                       </div>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colorIconMap[rec.color]}`}>
-                        Act
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
                 <button
                   onClick={() => router.push("/agent")}
                   className="mt-4 w-full py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"

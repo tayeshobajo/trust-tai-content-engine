@@ -22,47 +22,8 @@ interface Campaign {
   gradientTo: string
 }
 
-const CAMPAIGNS: Campaign[] = [
-  {
-    id: "camp-001",
-    name: "Roadmap Launch",
-    goal: "Generate 20 qualified leads",
-    startDate: "Jul 1",
-    endDate: "Jul 31",
-    platforms: ["LinkedIn", "Instagram"],
-    postCount: 8,
-    status: "Active",
-    progress: 35,
-    gradientFrom: "#2563EB",
-    gradientTo: "#7C3AED",
-  },
-  {
-    id: "camp-002",
-    name: "Founder Authority Series",
-    goal: "Build LinkedIn presence to 3K followers",
-    startDate: "Jun 30",
-    endDate: "Aug 15",
-    platforms: ["LinkedIn"],
-    postCount: 12,
-    status: "Active",
-    progress: 22,
-    gradientFrom: "#7C3AED",
-    gradientTo: "#0EA5E9",
-  },
-  {
-    id: "camp-003",
-    name: "Spirit First Awareness",
-    goal: "Establish thought leadership",
-    startDate: "Jul 7",
-    endDate: "Jul 28",
-    platforms: ["All Platforms"],
-    postCount: 6,
-    status: "Planning",
-    progress: 0,
-    gradientFrom: "#F59E0B",
-    gradientTo: "#EF4444",
-  },
-]
+// No demo campaigns — created by user
+const CAMPAIGNS: Campaign[] = []
 
 const STATUS_BADGE: Record<CampaignStatus, string> = {
   Active: "bg-green-100 text-green-700",
@@ -206,28 +167,31 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
 }
 
 export default function CampaignsPage() {
+  const activeCampaigns = CAMPAIGNS.filter((c) => c.status === "Active").length
+  const scheduledPosts = CAMPAIGNS.reduce((sum, c) => sum + c.postCount, 0)
+
   const topStats: TopStatProps[] = [
     {
       label: "Active Campaigns",
-      value: "3",
+      value: String(activeCampaigns),
       iconBg: "bg-blue-600",
       icon: <Target className="w-6 h-6 text-white" />,
     },
     {
       label: "Scheduled Posts",
-      value: "18",
+      value: String(scheduledPosts),
       iconBg: "bg-purple-600",
       icon: <Calendar className="w-6 h-6 text-white" />,
     },
     {
       label: "Campaign Reach",
-      value: "8.2K",
+      value: "—",
       iconBg: "bg-green-600",
       icon: <Globe className="w-6 h-6 text-white" />,
     },
     {
       label: "Leads Influenced",
-      value: "12",
+      value: "—",
       iconBg: "bg-amber-500",
       icon: <FileText className="w-6 h-6 text-white" />,
     },
@@ -260,11 +224,23 @@ export default function CampaignsPage() {
           </div>
 
           {/* Campaign cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {CAMPAIGNS.map((c) => (
-              <CampaignCard key={c.id} campaign={c} />
-            ))}
-          </div>
+          {CAMPAIGNS.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-4">
+                <Target className="w-7 h-7 text-blue-400" />
+              </div>
+              <h3 className="text-base font-semibold text-[#0F172A] mb-1">No campaigns yet</h3>
+              <p className="text-sm text-[#64748B] max-w-xs">
+                Create your first campaign to group posts around a goal or launch.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {CAMPAIGNS.map((c) => (
+                <CampaignCard key={c.id} campaign={c} />
+              ))}
+            </div>
+          )}
         </div>
       </Shell>
     </>

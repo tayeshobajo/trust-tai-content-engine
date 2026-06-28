@@ -21,90 +21,11 @@ interface CalendarDay {
   posts: Post[];
 }
 
-// ─── Mock post data ───────────────────────────────────────────────────────────
+// ─── Post data (populated from store once Supabase is wired) ─────────────────────────────────
 
-const calendarPosts: Record<string, Post[]> = {
-  "2026-06-30": [
-    {
-      id: 1,
-      title: "The founder insight no one talks about",
-      platform: "LinkedIn",
-      status: "Scheduled",
-      gradient: "from-blue-400 to-blue-600",
-    },
-  ],
-  "2026-07-02": [
-    {
-      id: 2,
-      title: "Your content strategy is broken — here's the fix",
-      platform: "LinkedIn",
-      status: "Approved",
-      gradient: "from-purple-400 to-purple-600",
-    },
-  ],
-  "2026-07-03": [
-    {
-      id: 3,
-      title: "3 things I learned building from zero",
-      platform: "Instagram",
-      status: "Needs Review",
-      gradient: "from-pink-400 to-rose-600",
-    },
-  ],
-  "2026-07-07": [
-    {
-      id: 4,
-      title: "Monday founder check-in: what moved the needle",
-      platform: "LinkedIn",
-      status: "Scheduled",
-      gradient: "from-green-400 to-emerald-600",
-    },
-  ],
-  "2026-07-09": [
-    {
-      id: 5,
-      title: "Client education: the funnel nobody is building",
-      platform: "LinkedIn",
-      status: "Approved",
-      gradient: "from-amber-400 to-orange-500",
-    },
-  ],
-  "2026-07-11": [
-    {
-      id: 6,
-      title: "BTS: Inside a real Trust Tai content sprint",
-      platform: "Instagram",
-      status: "Draft",
-      gradient: "from-cyan-400 to-blue-500",
-    },
-  ],
-};
+const calendarPosts: Record<string, Post[]> = {};
 
-const unscheduledDrafts: Post[] = [
-  {
-    id: 10,
-    title: "Why most founders quit content too early",
-    platform: "LinkedIn",
-    status: "Draft",
-    gradient: "from-slate-300 to-slate-400",
-  },
-  {
-    id: 11,
-    title: "The repurposing playbook I use every week",
-    platform: "LinkedIn",
-    status: "Idea",
-    gradient: "from-violet-300 to-purple-400",
-  },
-  {
-    id: 12,
-    title: "Real talk: months 1-3 of building in public",
-    platform: "Instagram",
-    status: "Draft",
-    gradient: "from-rose-300 to-pink-400",
-  },
-];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const unscheduledDrafts: Post[] = [];
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",

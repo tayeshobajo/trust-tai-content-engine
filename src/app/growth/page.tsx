@@ -15,83 +15,27 @@ import {
 } from "recharts"
 import { Sparkles, TrendingUp, Users, Eye, MousePointer, Target } from "lucide-react"
 
-const audienceData = [
-  { month: "Jan", followers: 1200 },
-  { month: "Feb", followers: 1450 },
-  { month: "Mar", followers: 1780 },
-  { month: "Apr", followers: 2100 },
-  { month: "May", followers: 2450 },
-  { month: "Jun", followers: 2847 },
-]
+// Growth data — connect to real analytics once LinkedIn OAuth is wired
+const audienceData: { month: string; followers: number }[] = []
+const engagementData: { month: string; rate: number }[] = []
 
-const engagementData = [
-  { month: "Jan", rate: 2.1 },
-  { month: "Feb", rate: 2.8 },
-  { month: "Mar", rate: 3.2 },
-  { month: "Apr", rate: 3.6 },
-  { month: "May", rate: 3.9 },
-  { month: "Jun", rate: 4.2 },
-]
-
-const sparklineFollowers = [1200, 1450, 1780, 2100, 2450, 2847].map((v, i) => ({ v, i }))
-const sparklineImpressions = [8000, 10200, 12500, 14800, 16900, 18400].map((v, i) => ({ v, i }))
-const sparklineEngagement = [2.1, 2.8, 3.2, 3.6, 3.9, 4.2].map((v, i) => ({ v, i }))
-const sparklineClicks = [120, 150, 180, 210, 255, 284].map((v, i) => ({ v, i }))
+const sparklineFollowers: { v: number; i: number }[] = []
+const sparklineImpressions: { v: number; i: number }[] = []
+const sparklineEngagement: { v: number; i: number }[] = []
+const sparklineClicks: { v: number; i: number }[] = []
 
 const platformRows = [
-  { name: "LinkedIn", color: "bg-blue-600", impressions: "9,200", engRate: "5.8%", clicks: "142", leads: "8" },
-  { name: "Instagram", color: "bg-pink-500", impressions: "5,100", engRate: "3.9%", clicks: "84", leads: "3" },
-  { name: "X/Twitter", color: "bg-slate-800", impressions: "2,800", engRate: "2.1%", clicks: "38", leads: "1" },
-  { name: "Blog", color: "bg-slate-400", impressions: "1,300", engRate: "—", clicks: "20", leads: "0" },
+  { name: "LinkedIn", color: "bg-blue-600", impressions: "—", engRate: "—", clicks: "—", leads: "—" },
+  { name: "Instagram", color: "bg-pink-500", impressions: "—", engRate: "—", clicks: "—", leads: "—" },
+  { name: "X/Twitter", color: "bg-slate-800", impressions: "—", engRate: "—", clicks: "—", leads: "—" },
+  { name: "Blog", color: "bg-slate-400", impressions: "—", engRate: "—", clicks: "—", leads: "—" },
 ]
 
-const bestPosts = [
-  {
-    platform: "LinkedIn",
-    platformColor: "bg-blue-600",
-    hook: "You don't have a content problem. You have a clarity problem.",
-    impressions: "4,200",
-    engagement: "7.1%",
-  },
-  {
-    platform: "Instagram",
-    platformColor: "bg-pink-500",
-    hook: "The system that runs your business shouldn't require you to run it.",
-    impressions: "2,800",
-    engagement: "5.4%",
-  },
-  {
-    platform: "LinkedIn",
-    platformColor: "bg-blue-600",
-    hook: "Hiring before you have a system is just outsourcing your chaos.",
-    impressions: "2,300",
-    engagement: "6.2%",
-  },
-]
+const bestPosts: { platform: string; platformColor: string; hook: string; impressions: string; engagement: string }[] = []
 
-const agentInsights = [
-  {
-    observation: "LinkedIn posts on Tuesday/Thursday outperform Monday by 42%.",
-    why: "Your audience is most active mid-week during working hours.",
-    action: "Shift your highest-value posts to Tue/Thu 9–11am.",
-  },
-  {
-    observation: "Posts with a personal story in the hook get 2.3× more comments.",
-    why: "Founder authenticity resonates with your core audience.",
-    action: "Lead every post this week with a personal observation or story.",
-  },
-  {
-    observation: "Your 'Roadmap' pillar drives 80% of leads but only 30% of posts.",
-    why: "The market is responding to your system-building message.",
-    action: "Increase Roadmap-pillar frequency to 50% of posts for 2 weeks.",
-  },
-]
+const agentInsights: { observation: string; why: string; action: string }[] = []
 
-const goals = [
-  { label: "LinkedIn followers 3K", value: 95, color: "bg-green-500" },
-  { label: "Monthly impressions 25K", value: 74, color: "bg-blue-500" },
-  { label: "Leads from content", value: 40, color: "bg-amber-500" },
-]
+const goals: { label: string; value: number; color: string }[] = []
 
 function Sparkline({ data, color }: { data: { v: number; i: number }[]; color: string }) {
   return (
@@ -120,8 +64,8 @@ export default function GrowthPage() {
             {[
               {
                 label: "Total Followers",
-                value: "2,847",
-                delta: "↑312 this month",
+                value: "—",
+                delta: "Connect LinkedIn to track",
                 icon: Users,
                 iconBg: "bg-blue-600",
                 sparkData: sparklineFollowers,
@@ -129,8 +73,8 @@ export default function GrowthPage() {
               },
               {
                 label: "Total Impressions",
-                value: "18.4K",
-                delta: "↑22% this month",
+                value: "—",
+                delta: "Connect LinkedIn to track",
                 icon: Eye,
                 iconBg: "bg-green-600",
                 sparkData: sparklineImpressions,
@@ -138,8 +82,8 @@ export default function GrowthPage() {
               },
               {
                 label: "Avg Engagement Rate",
-                value: "4.2%",
-                delta: "↑0.8% this month",
+                value: "—",
+                delta: "Connect LinkedIn to track",
                 icon: TrendingUp,
                 iconBg: "bg-purple-600",
                 sparkData: sparklineEngagement,
@@ -147,8 +91,8 @@ export default function GrowthPage() {
               },
               {
                 label: "Website Clicks",
-                value: "284",
-                delta: "↑18% this month",
+                value: "—",
+                delta: "Connect analytics to track",
                 icon: MousePointer,
                 iconBg: "bg-amber-500",
                 sparkData: sparklineClicks,
@@ -165,8 +109,8 @@ export default function GrowthPage() {
                     <p className="text-xl font-bold text-[#0F172A]">{m.value}</p>
                   </div>
                 </div>
-                <Sparkline data={m.sparkData} color={m.sparkColor} />
-                <p className="text-xs text-green-600 mt-1">{m.delta}</p>
+                {m.sparkData.length > 0 && <Sparkline data={m.sparkData} color={m.sparkColor} />}
+                <p className="text-xs text-[#94A3B8] mt-1">{m.delta}</p>
               </div>
             ))}
           </div>
@@ -249,21 +193,25 @@ export default function GrowthPage() {
               {/* Best Posts */}
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
                 <h2 className="text-sm font-semibold text-[#0F172A] mb-3">Best Posts</h2>
-                <div className="space-y-3">
-                  {bestPosts.map((post, i) => (
-                    <div key={i} className="p-3 bg-[#F8F9FB] rounded-lg">
-                      <p className="text-xs font-medium text-[#0F172A] leading-snug mb-2">{post.hook}</p>
-                      <div className="flex items-center justify-between">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] text-white font-medium ${post.platformColor}`}>
-                          {post.platform}
-                        </span>
-                        <div className="text-right">
-                          <p className="text-[10px] text-[#94A3B8]">{post.impressions} views · {post.engagement} eng</p>
+                {bestPosts.length === 0 ? (
+                  <p className="text-xs text-[#94A3B8] py-4 text-center">Posts will appear here once you have published content.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {bestPosts.map((post, i) => (
+                      <div key={i} className="p-3 bg-[#F8F9FB] rounded-lg">
+                        <p className="text-xs font-medium text-[#0F172A] leading-snug mb-2">{post.hook}</p>
+                        <div className="flex items-center justify-between">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] text-white font-medium ${post.platformColor}`}>
+                            {post.platform}
+                          </span>
+                          <div className="text-right">
+                            <p className="text-[10px] text-[#94A3B8]">{post.impressions} views · {post.engagement} eng</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Agent Insights */}
@@ -272,15 +220,19 @@ export default function GrowthPage() {
                   <Sparkles className="w-4 h-4 text-blue-600" />
                   <h2 className="text-sm font-semibold text-[#0F172A]">Agent Insights</h2>
                 </div>
-                <div className="space-y-3">
-                  {agentInsights.map((insight, i) => (
-                    <div key={i} className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                      <p className="text-xs font-semibold text-[#0F172A] mb-1">{insight.observation}</p>
-                      <p className="text-[10px] text-[#64748B] mb-1"><span className="font-medium">Why:</span> {insight.why}</p>
-                      <p className="text-[10px] text-blue-700 font-medium">→ {insight.action}</p>
-                    </div>
-                  ))}
-                </div>
+                {agentInsights.length === 0 ? (
+                  <p className="text-xs text-[#94A3B8] py-4 text-center">Insights will generate once you have published posts.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {agentInsights.map((insight, i) => (
+                      <div key={i} className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                        <p className="text-xs font-semibold text-[#0F172A] mb-1">{insight.observation}</p>
+                        <p className="text-[10px] text-[#64748B] mb-1"><span className="font-medium">Why:</span> {insight.why}</p>
+                        <p className="text-[10px] text-blue-700 font-medium">→ {insight.action}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Goals */}
@@ -289,19 +241,23 @@ export default function GrowthPage() {
                   <Target className="w-4 h-4 text-[#64748B]" />
                   <h2 className="text-sm font-semibold text-[#0F172A]">Goals Progress</h2>
                 </div>
-                <div className="space-y-4">
-                  {goals.map((g) => (
-                    <div key={g.label}>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-xs text-[#64748B]">{g.label}</span>
-                        <span className="text-xs font-semibold text-[#0F172A]">{g.value}%</span>
+                {goals.length === 0 ? (
+                  <p className="text-xs text-[#94A3B8] py-4 text-center">No goals set yet. Add goals to track progress.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {goals.map((g) => (
+                      <div key={g.label}>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-xs text-[#64748B]">{g.label}</span>
+                          <span className="text-xs font-semibold text-[#0F172A]">{g.value}%</span>
+                        </div>
+                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${g.color}`} style={{ width: `${g.value}%` }} />
+                        </div>
                       </div>
-                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${g.color}`} style={{ width: `${g.value}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

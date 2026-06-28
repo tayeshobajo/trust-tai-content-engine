@@ -66,11 +66,7 @@ function setItem<T>(key: string, value: T): void {
 // ─── Posts ────────────────────────────────────────────────────────────────────
 
 export function getPosts(): Post[] {
-  const stored = getItem<Post[]>(KEYS.POSTS)
-  if (stored) return stored
-  // Initialize with mock data on first load
-  setItem(KEYS.POSTS, POSTS)
-  return POSTS
+  return getItem<Post[]>(KEYS.POSTS) ?? []
 }
 
 export function savePosts(posts: Post[]): void {
