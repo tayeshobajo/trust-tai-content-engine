@@ -67,30 +67,33 @@ export default function DashboardPage() {
   // Live approval queue from localStorage
   const approvalStatuses: string[] = ["Needs Review", "Needs Draft", "Needs Image", "Draft"]
 
-  const getApprovalItems = useCallback(() => {
-    return getPosts()
-      .filter((p) => approvalStatuses.includes(p.status as string))
-      .slice(0, 4)
+  const [approvalItems, setApprovalItems] = useState<Post[]>([])
+
+  const loadApprovalItems = useCallback(async () => {
+    const posts = await getPosts()
+    setAllPosts(posts)
+    setApprovalItems(posts.filter((p) => approvalStatuses.includes(p.status as string)).slice(0, 4))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const [approvalItems, setApprovalItems] = useState<Post[]>(() => getApprovalItems())
-
-  const loadApprovalItems = useCallback(() => {
-    const posts = getPosts()
-    setAllPosts(posts)
-    setApprovalItems(posts.filter((p) => approvalStatuses.includes(p.status as string)).slice(0, 4))
-  }, [getApprovalItems])
-
   useEffect(() => {
+    let cancelled = false
     // Initial load
-    loadApprovalItems()
+    getPosts().then((posts) => {
+      if (cancelled) return
+      setAllPosts(posts)
+      setApprovalItems(posts.filter((p) => approvalStatuses.includes(p.status as string)).slice(0, 4))
+    })
     // Re-sync on visibility change (user returns to tab)
     const handleVisibility = () => {
       if (!document.hidden) loadApprovalItems()
     }
     document.addEventListener("visibilitychange", handleVisibility)
-    return () => document.removeEventListener("visibilitychange", handleVisibility)
+    return () => {
+      cancelled = true
+      document.removeEventListener("visibilitychange", handleVisibility)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadApprovalItems])
 
   const approvalCount = approvalItems.length

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Shell from "@/components/Shell"
 import { getPosts, updatePost } from "@/lib/store"
@@ -240,14 +240,21 @@ function KanbanCard({ post, colId, onApprove, onRequestChanges, onSchedule, onVi
 
 export default function ApprovalsPage() {
   const router = useRouter()
-  const [posts, setPosts] = useState<Post[]>(() => {
-    if (typeof window !== 'undefined') return filterApprovalPosts(getPosts())
-    return []
-  })
+  const [posts, setPosts] = useState<Post[]>([])
   const [toast, setToast] = useState<string | null>(null)
 
-  const loadPosts = useCallback(() => {
-    setPosts(filterApprovalPosts(getPosts()))
+  const loadPosts = useCallback(async () => {
+    setPosts(filterApprovalPosts(await getPosts()))
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    getPosts().then((p) => {
+      if (!cancelled) setPosts(filterApprovalPosts(p))
+    })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   function showToast(msg: string) {
@@ -255,28 +262,28 @@ export default function ApprovalsPage() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  function handleApprove(post: Post) {
-    updatePost(post.id, { status: "Approved" as PostStatus })
-    loadPosts()
+  async function handleApprove(post: Post) {
+    await updatePost(post.id, { status: "Approved" as PostStatus })
+    await loadPosts()
     showToast("Post approved")
   }
 
-  function handleRequestChanges(post: Post, feedback: string) {
-    updatePost(post.id, {
+  async function handleRequestChanges(post: Post, feedback: string) {
+    await updatePost(post.id, {
       status: "Draft" as PostStatus,
       // Store feedback in body prefix for now (Agent A can wire proper feedback field)
       body: feedback ? `[FEEDBACK: ${feedback}]\n\n${post.body}` : post.body,
     })
-    loadPosts()
+    await loadPosts()
     showToast("Changes requested — post returned to Draft")
   }
 
-  function handleSchedule(post: Post, dt: string) {
-    updatePost(post.id, {
+  async function handleSchedule(post: Post, dt: string) {
+    await updatePost(post.id, {
       status: "Scheduled" as PostStatus,
       scheduleDate: dt,
     })
-    loadPosts()
+    await loadPosts()
     showToast("Post scheduled")
   }
 

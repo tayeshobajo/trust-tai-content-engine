@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Shell from "@/components/Shell"
 import CreatePostModal from "@/components/CreatePostModal"
-import { getPosts, updatePost, savePosts } from "@/lib/store"
+import { getPosts, updatePost, addPost } from "@/lib/store"
 import type { Post, PostStatus, Platform } from "@/data/posts"
 import { Search, Plus, MoreHorizontal, Check } from "lucide-react"
 
@@ -163,7 +163,7 @@ function PostCard({ post, onEdit, onDuplicate, onArchive }: PostCardProps) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LibraryPage() {
-  const [posts, setPosts] = useState<Post[]>(() => getPosts())
+  const [posts, setPosts] = useState<Post[]>([])
   const [activeTab, setActiveTab] = useState<TabOption>("All Posts")
   const [search, setSearch] = useState("")
   const [platformFilter, setPlatformFilter] = useState("All Platforms")
@@ -178,17 +178,25 @@ export default function LibraryPage() {
   // Toast state
   const [toast, setToast] = useState<string | null>(null)
 
-  const loadPosts = useCallback(() => {
-    setPosts(getPosts())
+  const loadPosts = useCallback(async () => {
+    setPosts(await getPosts())
   }, [])
 
   useEffect(() => {
+    let cancelled = false
+    // Initial load
+    getPosts().then((p) => {
+      if (!cancelled) setPosts(p)
+    })
     // Re-sync when returning to the tab
     const handleVisibility = () => {
       if (!document.hidden) loadPosts()
     }
     document.addEventListener("visibilitychange", handleVisibility)
-    return () => document.removeEventListener("visibilitychange", handleVisibility)
+    return () => {
+      cancelled = true
+      document.removeEventListener("visibilitychange", handleVisibility)
+    }
   }, [loadPosts])
 
   function showToast(msg: string) {
@@ -201,25 +209,22 @@ export default function LibraryPage() {
     setModalOpen(true)
   }
 
-  function handleDuplicate(post: Post) {
-    const allPosts = getPosts()
-    const duplicate: Post = {
+  async function handleDuplicate(post: Post) {
+    await addPost({
       ...post,
-      id: `post-${Date.now()}`,
       hook: `Copy of ${post.hook}`,
       status: "Draft",
       date: new Date().toLocaleDateString("en-US", {
         month: "short", day: "numeric", year: "numeric",
       }),
-    }
-    savePosts([duplicate, ...allPosts])
-    loadPosts()
+    })
+    await loadPosts()
     showToast("Post duplicated as Draft")
   }
 
-  function handleArchive(post: Post) {
-    updatePost(post.id, { status: "Archived" as PostStatus })
-    loadPosts()
+  async function handleArchive(post: Post) {
+    await updatePost(post.id, { status: "Archived" as PostStatus })
+    await loadPosts()
     showToast("Post archived")
   }
 

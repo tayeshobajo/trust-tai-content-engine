@@ -88,9 +88,10 @@ export default function PostDetailPage() {
   const [status, setStatus] = useState<Post["status"]>("Draft")
 
   useEffect(() => {
-    const found = getPosts().find((p) => p.id === id) ?? null
-    // Defer state updates to a callback (avoids set-state-in-effect lint error)
-    const t = setTimeout(() => {
+    let cancelled = false
+    getPosts().then((posts) => {
+      if (cancelled) return
+      const found = posts.find((p) => p.id === id) ?? null
       setPost(found)
       if (found) {
         setHook(found.hook)
@@ -99,8 +100,10 @@ export default function PostDetailPage() {
         setStatus(found.status)
       }
       setLoaded(true)
-    }, 0)
-    return () => clearTimeout(t)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [id])
 
   const bodyLength = body.length

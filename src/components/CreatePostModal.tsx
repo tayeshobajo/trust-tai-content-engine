@@ -58,9 +58,9 @@ export default function CreatePostModal({ open, onClose, onOpenChange, onCreated
     )
   }
 
-  function handleSave(status: PostStatus) {
+  async function handleSave(status: PostStatus) {
     const g = GRADIENTS[gradientIdx]
-    addPost({
+    await addPost({
       hook,
       body,
       cta,
