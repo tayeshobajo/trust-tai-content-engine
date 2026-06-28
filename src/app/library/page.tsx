@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import Shell from "@/components/Shell"
 import CreatePostModal from "@/components/CreatePostModal"
 import { getPosts, updatePost, savePosts } from "@/lib/store"
@@ -79,12 +80,16 @@ interface PostCardProps {
 }
 
 function PostCard({ post, onEdit, onDuplicate, onArchive }: PostCardProps) {
+  const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
 
   const badge = STATUS_BADGE[post.status] ?? "bg-slate-100 text-slate-600"
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+    <div
+      onClick={() => router.push("/library/" + post.id)}
+      className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:shadow-md transition-shadow"
+    >
       {/* Image placeholder */}
       <div className="relative">
         <div
@@ -119,12 +124,15 @@ function PostCard({ post, onEdit, onDuplicate, onArchive }: PostCardProps) {
           <div className="relative">
             <button
               className="p-1 rounded hover:bg-gray-100 text-[#94A3B8]"
-              onClick={() => setMenuOpen((v) => !v)}
+              onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v) }}
             >
               <MoreHorizontal className="w-4 h-4" />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-7 z-10 bg-white border border-gray-200 rounded-lg shadow-md w-36 py-1 text-sm">
+              <div
+                className="absolute right-0 top-7 z-10 bg-white border border-gray-200 rounded-lg shadow-md w-36 py-1 text-sm"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <button
                   className="w-full text-left px-3 py-1.5 hover:bg-gray-50 text-[#0F172A]"
                   onClick={() => { setMenuOpen(false); onEdit(post) }}

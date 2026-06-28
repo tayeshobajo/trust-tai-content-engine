@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
-import { use } from "react"
+import { useEffect, useState } from "react"
+import { useParams } from "next/navigation"
 import Shell from "@/components/Shell"
 import Sidebar from "@/components/Sidebar"
-import { POSTS } from "@/data/posts"
+import { getPosts } from "@/lib/store"
+import type { Post } from "@/data/posts"
 import {
   Sparkles,
   CheckCircle,
@@ -72,20 +73,35 @@ function CircleScore({ score }: { score: number }) {
   )
 }
 
-export default function PostDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = use(params)
-  const post = POSTS.find((p) => p.id === id) ?? POSTS[0]
+export default function PostDetailPage() {
+  const params = useParams<{ id: string }>()
+  const id = params.id
+
+  const [post, setPost] = useState<Post | null>(null)
+  const [loaded, setLoaded] = useState(false)
 
   const [activePlatformTab, setActivePlatformTab] =
     useState<PlatformTab>("LinkedIn")
-  const [hook, setHook] = useState(post.hook)
-  const [body, setBody] = useState(post.body)
-  const [cta, setCta] = useState(post.cta)
-  const [status, setStatus] = useState(post.status)
+  const [hook, setHook] = useState("")
+  const [body, setBody] = useState("")
+  const [cta, setCta] = useState("")
+  const [status, setStatus] = useState<Post["status"]>("Draft")
+
+  useEffect(() => {
+    const found = getPosts().find((p) => p.id === id) ?? null
+    // Defer state updates to a callback (avoids set-state-in-effect lint error)
+    const t = setTimeout(() => {
+      setPost(found)
+      if (found) {
+        setHook(found.hook)
+        setBody(found.body)
+        setCta(found.cta)
+        setStatus(found.status)
+      }
+      setLoaded(true)
+    }, 0)
+    return () => clearTimeout(t)
+  }, [id])
 
   const bodyLength = body.length
 
@@ -104,6 +120,50 @@ export default function PostDetailPage({
       <span className={`inline-flex items-center justify-center w-4 h-4 rounded text-[8px] font-bold text-white ${PTAB_COLORS[p]}`}>
         {PTAB_ABBR[p]}
       </span>
+    )
+  }
+
+  if (loaded && !post) {
+    return (
+      <>
+        <Sidebar />
+        <Shell>
+          <div className="px-8 py-6">
+            <Link
+              href="/library"
+              className="inline-flex items-center gap-1.5 text-sm text-[#64748B] hover:text-[#0F172A] mb-6 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Library
+            </Link>
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 flex flex-col items-center justify-center text-center">
+              <h1 className="text-2xl font-bold text-[#0F172A] mb-2">
+                Post not found
+              </h1>
+              <p className="text-sm text-[#64748B] mb-6">
+                This post doesn&apos;t exist or may have been deleted.
+              </p>
+              <Link
+                href="/library"
+                className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
+              >
+                Back to Library
+              </Link>
+            </div>
+          </div>
+        </Shell>
+      </>
+    )
+  }
+
+  if (!post) {
+    return (
+      <>
+        <Sidebar />
+        <Shell>
+          <div className="px-8 py-6" />
+        </Shell>
+      </>
     )
   }
 
