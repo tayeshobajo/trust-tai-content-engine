@@ -96,45 +96,45 @@ export default function CreatePostModal({ open, onClose, onOpenChange, onCreated
           <DialogTitle className="text-xl font-bold text-[#0F172A]">Create New Post</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-5 pt-2">
+        <div className="space-y-5 px-6 pt-4 pb-6">
           {/* Hook */}
           <div>
-            <div className="flex justify-between mb-1">
+            <div className="flex items-center justify-between mb-1.5">
               <label className="text-sm font-medium text-[#0F172A]">Hook / Opening Line</label>
-              <span className="text-xs text-[#94A3B8]">{hook.length}/100</span>
+              <span className="text-xs text-[#94A3B8] shrink-0">{hook.length}/100</span>
             </div>
             <Textarea
               value={hook}
               onChange={e => setHook(e.target.value.slice(0, 100))}
               placeholder="The founder with a $3M ceiling who thought he needed a CMO."
               rows={2}
-              className="resize-none text-sm"
+              className="resize-none text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
             />
           </div>
 
           {/* Body */}
           <div>
-            <div className="flex justify-between mb-1">
+            <div className="flex items-center justify-between mb-1.5">
               <label className="text-sm font-medium text-[#0F172A]">Caption / Body</label>
-              <span className="text-xs text-[#94A3B8]">{body.length}/3000</span>
+              <span className="text-xs text-[#94A3B8] shrink-0">{body.length}/3000</span>
             </div>
             <Textarea
               value={body}
               onChange={e => setBody(e.target.value.slice(0, 3000))}
               placeholder="Write the full post body here..."
               rows={6}
-              className="resize-none text-sm"
+              className="resize-none text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
             />
           </div>
 
           {/* CTA */}
           <div>
-            <label className="text-sm font-medium text-[#0F172A] block mb-1">CTA (one line)</label>
+            <label className="text-sm font-medium text-[#0F172A] block mb-1.5">CTA (one line)</label>
             <Input
               value={cta}
               onChange={e => setCta(e.target.value)}
               placeholder="→ discoverycall.ai"
-              className="text-sm"
+              className="text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
             />
           </div>
 
@@ -161,7 +161,7 @@ export default function CreatePostModal({ open, onClose, onOpenChange, onCreated
           {/* Category + Pillar */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-[#0F172A] block mb-1">Category</label>
+              <label className="text-sm font-medium text-[#0F172A] block mb-1.5">Category</label>
               <select
                 value={category}
                 onChange={e => setCategory(e.target.value as PostCategory)}
@@ -171,7 +171,7 @@ export default function CreatePostModal({ open, onClose, onOpenChange, onCreated
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium text-[#0F172A] block mb-1">Content Pillar</label>
+              <label className="text-sm font-medium text-[#0F172A] block mb-1.5">Content Pillar</label>
               <select
                 value={pillar}
                 onChange={e => setPillar(e.target.value)}
@@ -185,7 +185,7 @@ export default function CreatePostModal({ open, onClose, onOpenChange, onCreated
           {/* Campaign + Date */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-[#0F172A] block mb-1">Campaign</label>
+              <label className="text-sm font-medium text-[#0F172A] block mb-1.5">Campaign</label>
               <select
                 value={campaign}
                 onChange={e => setCampaign(e.target.value)}
@@ -195,18 +195,18 @@ export default function CreatePostModal({ open, onClose, onOpenChange, onCreated
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium text-[#0F172A] block mb-1">Schedule Date</label>
+              <label className="text-sm font-medium text-[#0F172A] block mb-1.5">Schedule Date</label>
               <input
                 type="datetime-local"
                 value={scheduledDate}
                 onChange={e => setScheduledDate(e.target.value)}
-                className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-200 rounded-lg px-3 py-2.5 w-full text-sm text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
 
           {/* Card Color */}
-          <div>
+          <div className="mt-2">
             <label className="text-sm font-medium text-[#0F172A] block mb-2">Card Color</label>
             <div className="flex gap-2 flex-wrap">
               {GRADIENTS.map((g, i) => (

@@ -270,23 +270,23 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-[#94A3B8]">Followers</p>
-                    <p className="text-lg font-bold text-[#0F172A]">2,847</p>
-                    <p className="text-xs text-green-600 font-medium">↑312</p>
+                    <p className="text-lg font-bold text-[#0F172A]">—</p>
+                    <p className="text-xs text-[#94A3B8] font-medium">Connect LinkedIn to track</p>
                   </div>
                   <div>
                     <p className="text-xs text-[#94A3B8]">Impressions</p>
-                    <p className="text-lg font-bold text-[#0F172A]">18.4K</p>
-                    <p className="text-xs text-green-600 font-medium">↑22%</p>
+                    <p className="text-lg font-bold text-[#0F172A]">—</p>
+                    <p className="text-xs text-[#94A3B8] font-medium">Connect LinkedIn to track</p>
                   </div>
                   <div>
                     <p className="text-xs text-[#94A3B8]">Engagement</p>
-                    <p className="text-lg font-bold text-[#0F172A]">4.2%</p>
-                    <p className="text-xs text-green-600 font-medium">↑0.8%</p>
+                    <p className="text-lg font-bold text-[#0F172A]">—</p>
+                    <p className="text-xs text-[#94A3B8] font-medium">Connect LinkedIn to track</p>
                   </div>
                   <div>
                     <p className="text-xs text-[#94A3B8]">Clicks</p>
-                    <p className="text-lg font-bold text-[#0F172A]">284</p>
-                    <p className="text-xs text-green-600 font-medium">↑18%</p>
+                    <p className="text-lg font-bold text-[#0F172A]">—</p>
+                    <p className="text-xs text-[#94A3B8] font-medium">Connect LinkedIn to track</p>
                   </div>
                 </div>
               </div>

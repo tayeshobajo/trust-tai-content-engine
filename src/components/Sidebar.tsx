@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { getPosts } from "@/lib/store";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -29,14 +31,39 @@ const navItems: NavItem[] = [
   { label: "Campaigns", href: "/campaigns", icon: Megaphone },
   { label: "Content Map", href: "/content-map", icon: Map },
   { label: "Growth", href: "/growth", icon: TrendingUp },
-  { label: "Approvals", href: "/approvals", icon: CheckSquare, badge: 4 },
+  { label: "Approvals", href: "/approvals", icon: CheckSquare },
   { label: "Assets", href: "/assets", icon: FolderOpen },
   { label: "Agent", href: "/agent", icon: Sparkles },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
+// Statuses that count as awaiting action in the approval pipeline
+const APPROVAL_STATUSES = ["Needs Review", "Needs Draft", "Needs Image", "Draft"];
+
 export default function Sidebar() {
   const pathname = usePathname();
+  const [approvalsBadge, setApprovalsBadge] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadCount = () => {
+      getPosts().then((posts) => {
+        if (cancelled) return;
+        setApprovalsBadge(
+          posts.filter((p) => APPROVAL_STATUSES.includes(p.status as string)).length
+        );
+      });
+    };
+    loadCount();
+    const handleVisibility = () => {
+      if (!document.hidden) loadCount();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
 
   return (
     <aside
@@ -63,6 +90,10 @@ export default function Sidebar() {
             pathname === item.href ||
             (item.href !== "/dashboard" && pathname.startsWith(item.href));
           const Icon = item.icon;
+          const badge =
+            item.href === "/approvals" && approvalsBadge > 0
+              ? approvalsBadge
+              : item.badge;
 
           return (
             <Link
@@ -76,7 +107,7 @@ export default function Sidebar() {
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
               <span className="flex-1 truncate">{item.label}</span>
-              {item.badge !== undefined && (
+              {badge !== undefined && (
                 <span
                   className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
                     isActive
@@ -84,7 +115,7 @@ export default function Sidebar() {
                       : "bg-amber-500 text-white"
                   }`}
                 >
-                  {item.badge}
+                  {badge}
                 </span>
               )}
             </Link>
