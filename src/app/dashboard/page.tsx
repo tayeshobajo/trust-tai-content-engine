@@ -1,373 +1,291 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Shell from "@/components/Shell"
-import MetricCard from "@/components/ui/MetricCard"
-import StatusBadge from "@/components/ui/StatusBadge"
-import CreatePostModal from "@/components/CreatePostModal"
-import { getPosts } from "@/lib/store"
-import type { Post, PostStatus } from "@/data/posts"
 import {
-  CalendarDays,
-  Target,
-  TrendingUp,
-  AlertCircle,
-  Sparkles,
-} from "lucide-react"
+  GATE_ORDER,
+  GATE_QUESTIONS,
+  GATE_SHORT_LABELS,
+  approvedGateCount,
+  nextGate,
+  stageLabel,
+  type GateKey,
+  type Production,
+} from "@/data/studio"
+import { getProductions, PRODUCTIONS_CHANGED_EVENT } from "@/lib/studio-store"
+import { ArrowRight, Clapperboard, PenLine, Stamp } from "lucide-react"
 
-// ─── Static sections (populated from real data once available) ───────────────
-
-// Week posts derive from the user's scheduled posts — no demo data
-const weekPosts: {
-  id: number
-  day: string
-  title: string
-  platforms: string[]
-  category: string
-  status: "Scheduled" | "Approved" | "Needs Review" | "Draft"
-  time: string
-  gradient: string
-}[] = []
-
-// Agent recommendations — generated once real posts exist
-const recommendations: {
-  id: number
-  trigger: string
-  action: string
-  color: "blue" | "amber" | "green" | "purple"
-}[] = []
-
-const colorDotMap = {
-  blue: "bg-blue-500",
-  amber: "bg-amber-500",
-  green: "bg-green-500",
-  purple: "bg-purple-600",
+const GATE_COLORS: Record<GateKey, { dot: string; text: string; bg: string }> = {
+  truth: { dot: "bg-emerald-600", text: "text-emerald-700", bg: "bg-emerald-50" },
+  post: { dot: "bg-amber-500", text: "text-amber-700", bg: "bg-amber-50" },
+  concept: { dot: "bg-orange-600", text: "text-orange-700", bg: "bg-orange-50" },
+  keyframes: { dot: "bg-purple-600", text: "text-purple-700", bg: "bg-purple-50" },
+  film: { dot: "bg-green-700", text: "text-green-800", bg: "bg-green-50" },
 }
 
-const colorIconMap = {
-  blue: "bg-blue-100 text-blue-600",
-  amber: "bg-amber-100 text-amber-600",
-  green: "bg-green-100 text-green-600",
-  purple: "bg-purple-100 text-purple-600",
+function startOfWeek(d: Date): Date {
+  const day = d.getDay()
+  const diff = (day + 6) % 7
+  const monday = new Date(d)
+  monday.setDate(d.getDate() - diff)
+  monday.setHours(0, 0, 0, 0)
+  return monday
 }
 
-const platformColors: Record<string, string> = {
-  LinkedIn: "bg-blue-600",
-  Instagram: "bg-pink-500",
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
-
-export default function DashboardPage() {
+export default function CommandCenterPage() {
   const router = useRouter()
-  const [modalOpen, setModalOpen] = useState(false)
-  const [allPosts, setAllPosts] = useState<Post[]>([])
-
-  // Live approval queue from localStorage
-  const approvalStatuses: string[] = ["Needs Review", "Needs Draft", "Needs Image", "Draft"]
-
-  const [approvalItems, setApprovalItems] = useState<Post[]>([])
-
-  const loadApprovalItems = useCallback(async () => {
-    const posts = await getPosts()
-    setAllPosts(posts)
-    setApprovalItems(posts.filter((p) => approvalStatuses.includes(p.status as string)).slice(0, 4))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const [productions, setProductions] = useState<Production[]>([])
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    let cancelled = false
-    // Initial load
-    getPosts().then((posts) => {
-      if (cancelled) return
-      setAllPosts(posts)
-      setApprovalItems(posts.filter((p) => approvalStatuses.includes(p.status as string)).slice(0, 4))
-    })
-    // Re-sync on visibility change (user returns to tab)
-    const handleVisibility = () => {
-      if (!document.hidden) loadApprovalItems()
+    const load = () => {
+      setProductions(getProductions())
+      setLoaded(true)
     }
-    document.addEventListener("visibilitychange", handleVisibility)
-    return () => {
-      cancelled = true
-      document.removeEventListener("visibilitychange", handleVisibility)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadApprovalItems])
+    load()
+    window.addEventListener(PRODUCTIONS_CHANGED_EVENT, load)
+    return () => window.removeEventListener(PRODUCTIONS_CHANGED_EVENT, load)
+  }, [])
 
-  const approvalCount = approvalItems.length
-  const scheduledCount = allPosts.filter((p) => p.status === "Scheduled").length
-  const categoriesUsed = new Set(allPosts.map((p) => p.category)).size
-  const TOTAL_CATEGORIES = 8
+  const waitingAtGate = (gate: GateKey) =>
+    productions.filter((p) => nextGate(p) === gate).length
+
+  const packagesReady = productions.filter((p) => nextGate(p) === null).length
+  const decisionQueue = productions
+    .filter((p) => nextGate(p) !== null)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .slice(0, 5)
+
+  const weekStart = startOfWeek(new Date())
+  const approvedThisWeek = productions.filter(
+    (p) => p.gates.post.status === "approved" && (p.gates.post.decidedAt ?? "") >= weekStart.toISOString()
+  ).length
+  const filmsThisWeek = productions.filter(
+    (p) => p.gates.film.status === "approved" && (p.gates.film.decidedAt ?? "") >= weekStart.toISOString()
+  ).length
 
   return (
-    <>
-      <Shell>
-        <div className="px-8 py-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-[#0F172A]">
-                Content Command Center
-              </h1>
-              <p className="text-sm text-[#64748B] mt-1">
-                Plan, schedule, and grow your presence without living inside the
-                platforms.
-              </p>
-            </div>
-            <button
-              onClick={() => setModalOpen(true)}
-              className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+    <Shell>
+      <div className="px-4 md:px-8 py-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-[#0F172A]">Command Center</h1>
+            <p className="text-sm text-[#64748B] mt-1">
+              One clear thought becomes an approved argument and a film built around the same truth.
+            </p>
+          </div>
+          <button
+            onClick={() => router.push("/thinking-room")}
+            className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors self-start"
+          >
+            <PenLine className="w-4 h-4" />
+            Capture a thought
+          </button>
+        </div>
+
+        {/* Gate lanes */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+          {GATE_ORDER.map((gate) => (
+            <div
+              key={gate}
+              className="bg-white rounded-lg border border-gray-200 shadow-sm p-4"
             >
-              + Create Post
-            </button>
-          </div>
-
-          {/* Metric cards */}
-          <div className="grid grid-cols-4 gap-4 mb-8">
-            <MetricCard
-              title="Scheduled Posts"
-              value={scheduledCount}
-              trend={scheduledCount > 0 ? "Posts queued" : "No posts scheduled yet"}
-              icon={CalendarDays}
-              iconBgColor="#2563EB"
-            />
-            <MetricCard
-              title="Content Coverage"
-              value={allPosts.length > 0 ? `${categoriesUsed} of ${TOTAL_CATEGORIES} categories` : "—"}
-              trend={allPosts.length > 0 ? "Categories in use" : "Create posts to track coverage"}
-              icon={Target}
-              iconBgColor="#16A34A"
-            />
-            <MetricCard
-              title="Growth This Month"
-              value="—"
-              trend="Connect LinkedIn to track"
-              icon={TrendingUp}
-              iconBgColor="#7C3AED"
-            />
-            <MetricCard
-              title="Needs Attention"
-              value={approvalCount}
-              trend="Review pending items"
-              icon={AlertCircle}
-              iconBgColor="#F59E0B"
-            />
-          </div>
-
-          {/* Main 2-col layout */}
-          <div className="grid grid-cols-12 gap-6">
-            {/* LEFT (65%) */}
-            <div className="col-span-8 space-y-6">
-              {/* This Week's Content */}
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-sm font-semibold text-[#0F172A]">
-                    This Week&apos;s Content
-                  </h2>
-                  <span className="text-xs text-[#64748B]">Week of Jun 30</span>
-                </div>
-                {weekPosts.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 text-center">
-                    <p className="text-sm text-[#64748B]">No posts scheduled this week yet.</p>
-                    <button
-                      onClick={() => setModalOpen(true)}
-                      className="mt-3 text-sm font-medium text-blue-600 hover:underline"
-                    >
-                      Create your first post
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex gap-3 overflow-x-auto pb-2">
-                    {weekPosts.map((post) => (
-                      <div
-                        key={post.id}
-                        className="flex-shrink-0 w-52 bg-[#F8F9FB] rounded-xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                      >
-                        <div className={`h-24 bg-gradient-to-br ${post.gradient}`} />
-                        <div className="p-3">
-                          <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">
-                            {post.day}
-                          </p>
-                          <p className="text-xs font-semibold text-[#0F172A] line-clamp-2 mb-2 leading-snug">
-                            {post.title}
-                          </p>
-                          <div className="flex items-center gap-1 mb-2">
-                            {post.platforms.map((p) => (
-                              <span
-                                key={p}
-                                className={`text-[10px] text-white px-1.5 py-0.5 rounded font-medium ${platformColors[p] ?? "bg-gray-400"}`}
-                              >
-                                {p === "LinkedIn" ? "LI" : "IG"}
-                              </span>
-                            ))}
-                            <span className="text-[10px] text-[#94A3B8] bg-slate-100 px-1.5 py-0.5 rounded">
-                              {post.category}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <StatusBadge status={post.status} size="sm" />
-                            <span className="text-[10px] text-[#94A3B8]">
-                              {post.time}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Agent Recommendations */}
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Sparkles className="w-4 h-4 text-blue-600" />
-                  <h2 className="text-sm font-semibold text-[#0F172A]">
-                    Agent Recommendations
-                  </h2>
-                </div>
-                {recommendations.length === 0 ? (
-                  <p className="text-xs text-[#94A3B8] py-4 text-center">Recommendations appear once you have posts in the system.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {recommendations.map((rec) => (
-                      <div
-                        key={rec.id}
-                        className="flex items-start gap-3 p-3 rounded-lg bg-[#F8F9FB] hover:bg-gray-100 transition-colors cursor-pointer"
-                      >
-                        <div
-                          className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${colorDotMap[rec.color]}`}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-[#94A3B8] mb-0.5">{rec.trigger}</p>
-                          <p className="text-sm font-medium text-[#0F172A]">{rec.action}</p>
-                        </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colorIconMap[rec.color]}`}>
-                          Act
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <button
-                  onClick={() => router.push("/agent")}
-                  className="mt-4 w-full py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Ask the Agent Anything
-                </button>
-              </div>
-            </div>
-
-            {/* RIGHT (35%) */}
-            <div className="col-span-4 space-y-5">
-              {/* Growth Snapshot */}
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                <h2 className="text-sm font-semibold text-[#0F172A] mb-4">
-                  Growth Snapshot
-                </h2>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-[#94A3B8]">Followers</p>
-                    <p className="text-lg font-bold text-[#0F172A]">—</p>
-                    <p className="text-xs text-[#94A3B8] font-medium">Connect LinkedIn to track</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[#94A3B8]">Impressions</p>
-                    <p className="text-lg font-bold text-[#0F172A]">—</p>
-                    <p className="text-xs text-[#94A3B8] font-medium">Connect LinkedIn to track</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[#94A3B8]">Engagement</p>
-                    <p className="text-lg font-bold text-[#0F172A]">—</p>
-                    <p className="text-xs text-[#94A3B8] font-medium">Connect LinkedIn to track</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[#94A3B8]">Clicks</p>
-                    <p className="text-lg font-bold text-[#0F172A]">—</p>
-                    <p className="text-xs text-[#94A3B8] font-medium">Connect LinkedIn to track</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Approval Queue — live from localStorage */}
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-sm font-semibold text-[#0F172A]">
-                    Approval Queue
-                  </h2>
-                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">
-                    {approvalCount}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {approvalItems.length === 0 ? (
-                    <p className="text-xs text-[#94A3B8] text-center py-4">
-                      All clear — nothing needs review
-                    </p>
-                  ) : (
-                    approvalItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-start gap-2 pb-3 border-b border-gray-100 last:border-0 last:pb-0"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-[#0F172A] line-clamp-2 leading-snug mb-1">
-                            {item.hook}
-                          </p>
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className={`text-[10px] text-white px-1.5 py-0.5 rounded font-medium ${platformColors[item.platforms[0]] ?? "bg-gray-400"}`}
-                            >
-                              {item.platforms[0] === "LinkedIn"
-                                ? "LI"
-                                : item.platforms[0] === "Instagram"
-                                ? "IG"
-                                : item.platforms[0]}
-                            </span>
-                            <StatusBadge status={item.status as PostStatus} size="sm" />
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <button
-                  onClick={() => router.push("/approvals")}
-                  className="mt-3 w-full py-2 rounded-lg border border-gray-200 text-sm font-medium text-[#64748B] hover:bg-gray-50 transition-colors"
-                >
-                  Review All
-                </button>
-              </div>
-
-              {/* Monthly Goal Progress */}
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-sm font-semibold text-[#0F172A]">Monthly Goal</h2>
-                  <span className="text-sm font-bold text-blue-600">80%</span>
-                </div>
-                <p className="text-xs text-[#64748B] mb-3">
-                  80% of monthly goal complete
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`w-2 h-2 rounded-full ${GATE_COLORS[gate].dot}`} />
+                <p className="text-xs uppercase tracking-wider text-[#94A3B8]">
+                  {GATE_SHORT_LABELS[gate]}
                 </p>
-                <div className="w-full bg-gray-100 rounded-full h-2.5">
-                  <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: "80%" }} />
-                </div>
-                <div className="flex justify-between mt-2">
-                  <span className="text-xs text-[#94A3B8]">16 of 20 posts</span>
-                  <span className="text-xs text-[#94A3B8]">4 remaining</span>
-                </div>
               </div>
+              <p className="text-2xl font-bold text-[#0F172A]">{waitingAtGate(gate)}</p>
+              <p className="text-xs text-[#64748B] mt-0.5">waiting at this gate</p>
             </div>
+          ))}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-2 h-2 rounded-full bg-blue-600" />
+              <p className="text-xs uppercase tracking-wider text-[#94A3B8]">Packages</p>
+            </div>
+            <p className="text-2xl font-bold text-[#0F172A]">{packagesReady}</p>
+            <p className="text-xs text-[#64748B] mt-0.5">ready to publish by hand</p>
           </div>
         </div>
-      </Shell>
 
-      <CreatePostModal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        onSaved={loadApprovalItems}
-      />
-    </>
+        {/* Main layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Active productions */}
+          <div className="lg:col-span-8">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-[#0F172A]">Active productions</h2>
+                <span className="text-xs text-[#94A3B8]">
+                  {productions.length} in the studio
+                </span>
+              </div>
+              {loaded && productions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <p className="text-sm font-semibold text-[#0F172A] mb-1">
+                    The studio floor is clear.
+                  </p>
+                  <p className="text-sm text-[#64748B] mb-4">
+                    Everything starts with one thought worth arguing.
+                  </p>
+                  <button
+                    onClick={() => router.push("/thinking-room")}
+                    className="text-sm font-medium text-blue-600 hover:underline"
+                  >
+                    Open the Thinking Room
+                  </button>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {productions.map((p) => {
+                    const gate = nextGate(p)
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() =>
+                          router.push(
+                            gate === "concept" || gate === "keyframes" || gate === "film"
+                              ? `/film-studio?id=${p.id}`
+                              : gate === null
+                              ? `/library`
+                              : `/approvals?id=${p.id}`
+                          )
+                        }
+                        className="w-full text-left py-3.5 first:pt-0 last:pb-0 group"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-[#0F172A] leading-snug group-hover:text-blue-700 transition-colors">
+                              {p.title}
+                            </p>
+                            <p className="text-xs text-[#64748B] mt-1 line-clamp-2 leading-relaxed">
+                              {p.shift.end}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+                              <span
+                                className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                                  gate ? `${GATE_COLORS[gate].bg} ${GATE_COLORS[gate].text}` : "bg-blue-50 text-blue-700"
+                                }`}
+                              >
+                                {stageLabel(p)}
+                              </span>
+                              <span className="text-[11px] text-[#94A3B8]">
+                                {approvedGateCount(p)} of 5 gates approved
+                              </span>
+                            </div>
+                          </div>
+                          <ArrowRight className="w-4 h-4 text-[#94A3B8] group-hover:text-blue-600 flex-shrink-0 mt-1 transition-colors" />
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right rail */}
+          <div className="lg:col-span-4 space-y-5">
+            {/* Decision queue */}
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-[#0F172A]">Decisions due</h2>
+                {decisionQueue.length > 0 && (
+                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">
+                    {decisionQueue.length}
+                  </span>
+                )}
+              </div>
+              {decisionQueue.length === 0 ? (
+                <p className="text-xs text-[#94A3B8] text-center py-4">
+                  No gates waiting on you.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {decisionQueue.map((p) => {
+                    const gate = nextGate(p)
+                    if (gate === null) return null
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => router.push(`/approvals?id=${p.id}`)}
+                        className="w-full text-left pb-3 border-b border-gray-100 last:border-0 last:pb-0 group"
+                      >
+                        <p className="text-xs font-medium text-[#0F172A] leading-snug line-clamp-2 group-hover:text-blue-700 transition-colors">
+                          {p.title}
+                        </p>
+                        <p className="text-[11px] text-[#64748B] mt-1">
+                          {GATE_QUESTIONS[gate]}
+                        </p>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              <button
+                onClick={() => router.push("/approvals")}
+                className="mt-4 w-full py-2 rounded-lg border border-gray-200 text-sm font-medium text-[#64748B] hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <Stamp className="w-4 h-4" />
+                Open Approval Desk
+              </button>
+            </div>
+
+            {/* Weekly cadence */}
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
+              <h2 className="text-sm font-semibold text-[#0F172A] mb-4">Weekly cadence</h2>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#64748B]">Posts approved this week</span>
+                  <span className="text-sm font-bold text-[#0F172A]">{approvedThisWeek} of 3</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2">
+                  <div
+                    className="bg-amber-500 h-2 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, (approvedThisWeek / 3) * 100)}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-sm text-[#64748B]">Films finished this week</span>
+                  <span className="text-sm font-bold text-[#0F172A]">{filmsThisWeek} of 1</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2">
+                  <div
+                    className="bg-green-700 h-2 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, filmsThisWeek * 100)}%` }}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-[#94A3B8] mt-4 pt-3 border-t border-gray-100 leading-relaxed">
+                Cadence is a target, not a trigger. Nothing publishes without you.
+              </p>
+            </div>
+
+            {/* Film studio shortcut */}
+            <button
+              onClick={() => router.push("/film-studio")}
+              className="w-full bg-white rounded-lg border border-gray-200 shadow-sm p-5 text-left hover:border-blue-300 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-[#0F172A] flex items-center justify-center flex-shrink-0">
+                  <Clapperboard className="w-5 h-5 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#0F172A] group-hover:text-blue-700 transition-colors">
+                    Film Studio
+                  </p>
+                  <p className="text-xs text-[#64748B]">
+                    Concepts, treatment, shots, keyframes
+                  </p>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Shell>
   )
 }

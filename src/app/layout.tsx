@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Trust Tai Content Engine",
-  description: "Plan, schedule, and grow your presence without living inside the platforms.",
+  title: "Trust Tai Studio",
+  description: "One clear thought becomes an approved argument and a film built around the same truth.",
 };
 
 export default function RootLayout({

@@ -3,150 +3,158 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getPosts } from "@/lib/store";
+import { getProductions, openDecisionCount, PRODUCTIONS_CHANGED_EVENT } from "@/lib/studio-store";
 import {
   LayoutDashboard,
-  CalendarDays,
+  Lightbulb,
+  Stamp,
+  Clapperboard,
   BookOpen,
-  Megaphone,
-  Map,
-  TrendingUp,
-  CheckSquare,
-  FolderOpen,
-  Sparkles,
   Settings,
+  X,
 } from "lucide-react";
 
 interface NavItem {
   label: string;
   href: string;
   icon: React.ElementType;
-  badge?: number;
 }
 
 const navItems: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Calendar", href: "/calendar", icon: CalendarDays },
+  { label: "Command Center", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Thinking Room", href: "/thinking-room", icon: Lightbulb },
+  { label: "Approval Desk", href: "/approvals", icon: Stamp },
+  { label: "Film Studio", href: "/film-studio", icon: Clapperboard },
   { label: "Library", href: "/library", icon: BookOpen },
-  { label: "Campaigns", href: "/campaigns", icon: Megaphone },
-  { label: "Content Map", href: "/content-map", icon: Map },
-  { label: "Growth", href: "/growth", icon: TrendingUp },
-  { label: "Approvals", href: "/approvals", icon: CheckSquare },
-  { label: "Assets", href: "/assets", icon: FolderOpen },
-  { label: "Agent", href: "/agent", icon: Sparkles },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
-// Statuses that count as awaiting action in the approval pipeline
-const APPROVAL_STATUSES = ["Needs Review", "Needs Draft", "Needs Image", "Draft"];
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const [approvalsBadge, setApprovalsBadge] = useState(0);
+  const [decisionsBadge, setDecisionsBadge] = useState(0);
 
   useEffect(() => {
-    let cancelled = false;
     const loadCount = () => {
-      getPosts().then((posts) => {
-        if (cancelled) return;
-        setApprovalsBadge(
-          posts.filter((p) => APPROVAL_STATUSES.includes(p.status as string)).length
-        );
-      });
+      setDecisionsBadge(openDecisionCount(getProductions()));
     };
     loadCount();
+    window.addEventListener(PRODUCTIONS_CHANGED_EVENT, loadCount);
     const handleVisibility = () => {
       if (!document.hidden) loadCount();
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
-      cancelled = true;
+      window.removeEventListener(PRODUCTIONS_CHANGED_EVENT, loadCount);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);
 
   return (
-    <aside
-      className="fixed left-0 top-0 h-full w-[220px] flex flex-col z-40"
-      style={{ backgroundColor: "#0A0E1A" }}
-    >
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-5">
-        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
-          <span className="text-white text-xs font-bold">CE</span>
-        </div>
-        <span className="text-white font-semibold text-sm leading-tight">
-          Content Engine
-        </span>
-      </div>
-
-      {/* Divider */}
-      <div className="mx-4 border-t border-white/10 mb-3" />
-
-      {/* Nav */}
-      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
-        {navItems.map((item) => {
-          const isActive =
-            pathname === item.href ||
-            (item.href !== "/dashboard" && pathname.startsWith(item.href));
-          const Icon = item.icon;
-          const badge =
-            item.href === "/approvals" && approvalsBadge > 0
-              ? approvalsBadge
-              : item.badge;
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors group ${
-                isActive
-                  ? "bg-blue-600 text-white"
-                  : "text-white/60 hover:text-white hover:bg-white/5"
-              }`}
+    <>
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`fixed left-0 top-0 h-full w-[220px] flex flex-col z-50 transform transition-transform md:translate-x-0 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        style={{ backgroundColor: "#0A0E1A" }}
+      >
+        {/* Wordmark */}
+        <div className="flex items-center justify-between px-4 py-5">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-xs font-bold">TT</span>
+            </div>
+            <div className="min-w-0 leading-tight">
+              <p className="text-white font-semibold text-sm truncate">Trust Tai</p>
+              <p className="text-white/50 text-[11px] uppercase tracking-wider">Studio</p>
+            </div>
+          </div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="md:hidden p-1 text-white/60 hover:text-white"
+              aria-label="Close navigation"
             >
-              <Icon className="w-4 h-4 flex-shrink-0" />
-              <span className="flex-1 truncate">{item.label}</span>
-              {badge !== undefined && (
-                <span
-                  className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
-                    isActive
-                      ? "bg-white/20 text-white"
-                      : "bg-amber-500 text-white"
-                  }`}
-                >
-                  {badge}
-                </span>
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Bottom section */}
-      <div className="px-3 pb-4 mt-3 space-y-2">
-        <div className="mx-1 border-t border-white/10 mb-3" />
-
-        {/* Workspace card */}
-        <div className="px-3 py-2.5 rounded-lg bg-white/5">
-          <p className="text-xs text-white/40 uppercase tracking-wider mb-0.5">
-            Workspace
-          </p>
-          <p className="text-white text-sm font-medium truncate">Trust Tai</p>
-          <p className="text-white/50 text-xs">Business</p>
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
-        {/* User card */}
-        <div className="flex items-center gap-2 px-3 py-2">
-          <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-xs font-bold">T</span>
+        <div className="mx-4 border-t border-white/10 mb-3" />
+
+        {/* Nav */}
+        <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
+          {navItems.map((item) => {
+            const isActive =
+              pathname === item.href ||
+              (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            const Icon = item.icon;
+            const badge =
+              item.href === "/approvals" && decisionsBadge > 0
+                ? decisionsBadge
+                : undefined;
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  isActive
+                    ? "bg-blue-600 text-white"
+                    : "text-white/60 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1 truncate">{item.label}</span>
+                {badge !== undefined && (
+                  <span
+                    className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                      isActive ? "bg-white/20 text-white" : "bg-amber-500 text-white"
+                    }`}
+                  >
+                    {badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Bottom section */}
+        <div className="px-3 pb-4 mt-3 space-y-2">
+          <div className="mx-1 border-t border-white/10 mb-3" />
+
+          <div className="px-3 py-2.5 rounded-lg bg-white/5">
+            <p className="text-xs text-white/40 uppercase tracking-wider mb-0.5">
+              Production house
+            </p>
+            <p className="text-white text-sm font-medium truncate">Trust Tai Studio</p>
+            <p className="text-white/50 text-xs">Five gates. No auto-publish.</p>
           </div>
-          <div className="min-w-0">
-            <p className="text-white text-sm font-medium truncate">Tai</p>
-            <p className="text-white/40 text-xs truncate">Founder</p>
+
+          <div className="flex items-center gap-2 px-3 py-2">
+            <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-xs font-bold">T</span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-white text-sm font-medium truncate">Tai</p>
+              <p className="text-white/40 text-xs truncate">Founder and final approver</p>
+            </div>
           </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }
