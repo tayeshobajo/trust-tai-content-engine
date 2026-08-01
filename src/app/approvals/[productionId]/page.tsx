@@ -1,16 +1,19 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import Shell from "@/components/Shell"
 import GateRail from "@/components/GateRail"
+import TeachStudio from "@/components/TeachStudio"
 import {
   assembleArgument,
   type ArgumentSection,
   type Production,
 } from "@/data/studio"
 import { nextGate } from "@/data/studio"
-import { getProduction, setGate, PRODUCTIONS_CHANGED_EVENT } from "@/lib/studio-store"
+import { getProduction, setGate, updateProduction, PRODUCTIONS_CHANGED_EVENT } from "@/lib/studio-store"
+import type { CompareResult } from "@/app/api/studio/compare/route"
+import type { StoryScore } from "@/app/api/studio/score/route"
 import { checkVoice } from "@/lib/studio-engine"
 import {
   ArrowRight,
@@ -60,6 +63,22 @@ function sectionHasWarning(section: ArgumentSection): boolean {
 }
 
 type RightTab = "why" | "voice" | "source"
+
+function sectionsMatch(a: ArgumentSection[], b: ArgumentSection[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every((section, index) => {
+    const other = b[index]
+    return section.name === other?.name && section.text === other.text
+  })
+}
+
+function findPreviousSectionRevision(production: Production): ArgumentSection[] | null {
+  for (const revision of production.revisions) {
+    if (!revision.sections?.length) continue
+    if (!sectionsMatch(revision.sections, production.sections)) return revision.sections
+  }
+  return null
+}
 
 // ─── Why it works panel ────────────────────────────────────────────────────────
 
@@ -269,6 +288,15 @@ export default function ApprovalDeskWorkspace() {
   const [selectedSection, setSelectedSection] = useState<ArgumentSection | null>(null)
   const [previewMode, setPreviewMode] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [storyScore, setStoryScore] = useState<StoryScore | null>(null)
+  const [scoring, setScoring] = useState(false)
+  const scoredFor = useRef<string | null>(null)
+  const [shiftConfirmOpen, setShiftConfirmOpen] = useState(false)
+  const [confirmReopenOpen, setConfirmReopenOpen] = useState(false)
+  const [confirmReopenGate, setConfirmReopenGate] = useState<"hold" | "revert" | null>(null)
+  const [compareOpen, setCompareOpen] = useState(false)
+  const [compareResult, setCompareResult] = useState<CompareResult | null>(null)
+  const [comparing, setComparating] = useState(false)
 
   useEffect(() => {
     const load = () => { setProduction(getProduction(productionId) ?? null); setLoaded(true) }
@@ -276,6 +304,32 @@ export default function ApprovalDeskWorkspace() {
     window.addEventListener(PRODUCTIONS_CHANGED_EVENT, load)
     return () => window.removeEventListener(PRODUCTIONS_CHANGED_EVENT, load)
   }, [productionId])
+
+  // Score the post once when production loads and is at the post gate
+  useEffect(() => {
+    if (!production || scoring || scoredFor.current === production.id) return
+    if (production.gates.post.status === "approved") return
+    if (production.gates.truth.status !== "approved") return
+    const prod = production
+    scoredFor.current = prod.id
+    const run = async () => {
+      setScoring(true)
+      try {
+        const r = await fetch("/api/studio/score", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ spine: prod.spine, shift: prod.shift, sections: prod.sections }),
+        })
+        if (r.ok) {
+          const score = await r.json() as StoryScore
+          setStoryScore(score)
+        }
+      } catch { /* noop */ } finally {
+        setScoring(false)
+      }
+    }
+    void run()
+  }, [production]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loaded && !production) {
     return (
@@ -296,19 +350,118 @@ export default function ApprovalDeskWorkspace() {
   const wc = wordCount(production.sections)
   const voiceWarnings = checkVoice(assembleArgument(production.sections))
   const voiceWarnCount = voiceWarnings.length
+  const previousSections = findPreviousSectionRevision(production)
 
-  function handleApprove() {
+  async function handleApprove() {
+    if (!isPostGate || saving) return
+    if ((storyScore?.blocking?.length ?? 0) > 0) return
+    setShiftConfirmOpen(true)
+  }
+
+  async function confirmApprove() {
     if (!isPostGate || saving) return
     setSaving(true)
+    setShiftConfirmOpen(false)
+
+    // Score the post before approval
+    try {
+      const res = await fetch("/api/studio/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          spine: production!.spine,
+          shift: production!.shift,
+          sections: production!.sections,
+        }),
+      })
+      if (res.ok) {
+        const score = await res.json() as StoryScore
+        updateProduction(production!.id, (p) => ({
+          ...p,
+          revisions: [
+            {
+              at: new Date().toISOString(),
+              note: `Post approved. Quality score: Human truth ${score.humanTruth.score}, Spirit First ${score.spiritFirst.score}, Audience shift ${score.audienceShift.score}. Governing: ${score.governingQuestion.slice(0, 120)}`,
+            },
+            ...p.revisions,
+          ],
+        }))
+      }
+    } catch { /* noop — approval still proceeds */ }
+
     const updated = setGate(production!.id, "post", "approved")
     if (updated) setProduction(updated)
     setSaving(false)
-    router.push(`/film-studio/${production!.id}`)
+    router.push(`/film-studio?id=${production!.id}`)
   }
 
   function handleHold() {
+    // If post is already approved, require confirmation before reopening
+    if (production!.gates.post.status === "approved") {
+      setConfirmReopenGate("hold")
+      setConfirmReopenOpen(true)
+      return
+    }
     const updated = setGate(production!.id, "post", "hold")
     if (updated) setProduction(updated)
+  }
+
+  async function handleRequestRevision() {
+    if (!production) return
+    const originalSections = findPreviousSectionRevision(production)
+    setCompareOpen(true)
+    setCompareResult(null)
+    setComparating(true)
+
+    try {
+      const response = await fetch("/api/studio/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          spine: production.spine,
+          shift: production.shift,
+          currentSections: production.sections,
+          originalSections,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Comparison request failed")
+      const result = await response.json() as CompareResult
+      setCompareResult(result)
+    } catch {
+      setCompareResult({
+        differences: [
+          {
+            dimension: "structure",
+            summary: "Studio could not complete the version comparison right now.",
+            strongerVersion: "neither",
+          },
+        ],
+        recommendation: "neither",
+        reasoning: "The comparison service failed. Keep the post at the Post gate and retry once the comparison endpoint is available again.",
+      })
+    } finally {
+      setComparating(false)
+    }
+  }
+
+  async function handleApproveFromCompare() {
+    setCompareOpen(false)
+    await handleApprove()
+  }
+
+  function confirmReopen() {
+    if (!confirmReopenGate) return
+    const status = confirmReopenGate === "hold" ? "hold" : "open"
+    const updated = setGate(production!.id, "post", status as "hold" | "open")
+    if (updated) {
+      setProduction(updated)
+      // Reset score so it re-runs on next load
+      setStoryScore(null)
+      scoredFor.current = null
+    }
+    setConfirmReopenOpen(false)
+    setConfirmReopenGate(null)
   }
 
   return (
@@ -461,6 +614,13 @@ export default function ApprovalDeskWorkspace() {
                               >
                                 <MessageSquare className="w-3 h-3" />
                               </button>
+                              <TeachStudio
+                                productionId={production.id}
+                                surface="approval_desk"
+                                target={s.name}
+                                before={s.text}
+                                compact
+                              />
                             </div>
                           )}
                         </div>
@@ -530,7 +690,74 @@ export default function ApprovalDeskWorkspace() {
               </div>
 
               {/* Tab content */}
-              {rightTab === "why" && <WhyItWorks production={production} selectedSection={selectedSection} />}
+              {rightTab === "why" && (
+                <div className="space-y-5">
+                  <WhyItWorks production={production} selectedSection={selectedSection} />
+
+                  {/* Quality score panel */}
+                  {(scoring || storyScore) && (
+                    <div>
+                      <p className="text-[9px] font-bold tracking-[0.14em] uppercase mb-3" style={{ color: "#8A8578" }}>
+                        Studio quality read
+                      </p>
+                      {scoring && (
+                        <p className="text-xs" style={{ color: "#C0BAB0" }}>Analysing...</p>
+                      )}
+                      {storyScore && !scoring && (() => {
+                        const dims = [
+                          { key: "humanTruth", label: "Human truth", blocking: true },
+                          { key: "spiritFirst", label: "Spirit First", blocking: true },
+                          { key: "audienceShift", label: "Audience shift", blocking: true },
+                          { key: "perspectiveGained", label: "Perspective", blocking: false },
+                          { key: "originality", label: "Originality", blocking: false },
+                          { key: "dramaticStrength", label: "Dramatic strength", blocking: false },
+                        ] as const
+                        const colors = {
+                          low: { bg: "rgba(220,38,38,0.08)", text: "#B91C1C", dot: "#EF4444" },
+                          medium: { bg: "rgba(194,154,91,0.08)", text: "#A07A30", dot: "#C29A5B" },
+                          high: { bg: "rgba(22,163,74,0.08)", text: "#15803D", dot: "#22C55E" },
+                        }
+                        return (
+                          <div className="space-y-1.5">
+                            {dims.map(({ key, label, blocking }) => {
+                              const dim = storyScore[key as keyof StoryScore] as { score: "low"|"medium"|"high"; reasoning: string; repair?: string }
+                              if (!dim || typeof dim !== "object") return null
+                              const c = colors[dim.score]
+                              const isBlocking = blocking && dim.score === "low"
+                              return (
+                                <div key={key} className="rounded-sm px-3 py-2" style={{ backgroundColor: c.bg, border: `1px solid ${c.dot}22` }}>
+                                  <div className="flex items-center justify-between mb-0.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.dot }} />
+                                      <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: c.text }}>
+                                        {label}
+                                      </span>
+                                      {isBlocking && (
+                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(220,38,38,0.15)", color: "#B91C1C" }}>BLOCKS</span>
+                                      )}
+                                    </div>
+                                    <span className="text-[10px] font-semibold" style={{ color: c.text }}>{dim.score}</span>
+                                  </div>
+                                  <p className="text-[10px] leading-relaxed" style={{ color: "#4A5568" }}>{dim.reasoning}</p>
+                                  {dim.repair && dim.score !== "high" && (
+                                    <p className="text-[10px] leading-relaxed mt-1" style={{ color: c.text }}>Repair: {dim.repair}</p>
+                                  )}
+                                </div>
+                              )
+                            })}
+                            {storyScore.governingQuestion && (
+                              <div className="mt-3 pt-3" style={{ borderTop: "1px solid #EAE6DF" }}>
+                                <p className="text-[9px] font-bold tracking-[0.14em] uppercase mb-1" style={{ color: "#8A8578" }}>Governing question</p>
+                                <p className="text-[11px] leading-relaxed italic" style={{ color: "#4A5568" }}>{storyScore.governingQuestion}</p>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  )}
+                </div>
+              )}
               {rightTab === "voice" && <VoiceCheckPanel production={production} />}
               {rightTab === "source" && <SourcePanel production={production} />}
             </div>
@@ -562,23 +789,233 @@ export default function ApprovalDeskWorkspace() {
               Hold
             </button>
             <button
+              onClick={() => { void handleRequestRevision() }}
               className="text-xs font-medium px-3 py-1.5 rounded-sm transition-colors hover:bg-black/5"
               style={{ border: "1px solid #1A2332", color: "#1A2332" }}
             >
               Request revision
             </button>
+            <TeachStudio
+              productionId={production.id}
+              surface="approval_desk"
+              target="Post gate"
+              before={assembleArgument(production.sections)}
+              compact
+            />
+            {storyScore?.blocking && storyScore.blocking.length > 0 && (
+              <span className="text-[10px] font-bold px-2 py-1 rounded-sm" style={{ backgroundColor: "rgba(220,38,38,0.1)", color: "#B91C1C" }}>
+                {storyScore.blocking.length} blocking dimension{storyScore.blocking.length > 1 ? "s" : ""}
+              </span>
+            )}
             <button
               onClick={handleApprove}
-              disabled={!isPostGate || saving}
+              disabled={!isPostGate || saving || (storyScore?.blocking?.length ?? 0) > 0}
               className="flex items-center gap-1.5 text-xs font-semibold px-4 py-1.5 rounded-sm transition-opacity hover:opacity-90 disabled:opacity-40"
               style={{ backgroundColor: "#1A2332", color: "#FFFFFF" }}
             >
-              Approve post
+              {saving ? "Scoring..." : "Approve post"}
               <ArrowRight className="w-3 h-3" />
             </button>
           </div>
         </div>
       </div>
+
+      {compareOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-5xl rounded-xl border border-gray-200 bg-white p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="mb-1 text-sm font-bold text-[#0F172A]">Version comparison</p>
+                <p className="text-sm leading-relaxed text-[#64748B]">
+                  Compare the current post against the last saved section revision by meaning, not just line edits.
+                </p>
+              </div>
+              <button
+                onClick={() => setCompareOpen(false)}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-[#64748B] transition-colors hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-[#EAE6DF] bg-[#F8F5EE] p-4">
+                <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#8A8578]">
+                  Current version
+                </p>
+                <div className="max-h-[280px] overflow-y-auto whitespace-pre-line text-sm leading-relaxed text-[#1A2332]">
+                  {assembleArgument(production.sections)}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#EAE6DF] bg-[#FCFBF8] p-4">
+                <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#8A8578]">
+                  Previous version
+                </p>
+                {previousSections ? (
+                  <div className="max-h-[280px] overflow-y-auto whitespace-pre-line text-sm leading-relaxed text-[#1A2332]">
+                    {assembleArgument(previousSections)}
+                  </div>
+                ) : (
+                  <p className="text-sm leading-relaxed text-[#8A8578]">
+                    No previous section snapshot is stored for this production yet.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-[#EAE6DF] bg-white p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8A8578]">
+                  Studio comparison read
+                </p>
+                {compareResult?.recommendation && (
+                  <span
+                    className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+                    style={{
+                      backgroundColor:
+                        compareResult.recommendation === "current"
+                          ? "rgba(22,163,74,0.12)"
+                          : compareResult.recommendation === "original"
+                            ? "rgba(194,154,91,0.14)"
+                            : "rgba(148,163,184,0.12)",
+                      color:
+                        compareResult.recommendation === "current"
+                          ? "#15803D"
+                          : compareResult.recommendation === "original"
+                            ? "#A07A30"
+                            : "#64748B",
+                    }}
+                  >
+                    Recommend {compareResult.recommendation}
+                  </span>
+                )}
+              </div>
+
+              {comparing ? (
+                <p className="text-sm leading-relaxed text-[#64748B]">
+                  Comparing the drafts across truth, tone, emotion, audience effect, and structure...
+                </p>
+              ) : compareResult ? (
+                <div className="space-y-3">
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {compareResult.differences.map((difference) => (
+                      <div key={difference.dimension} className="rounded-xl border border-[#EAE6DF] bg-[#FCFBF8] p-3">
+                        <div className="mb-1 flex items-center justify-between gap-3">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8A8578]">
+                            {difference.dimension}
+                          </p>
+                          <span className="text-[10px] font-semibold text-[#1A2332]">
+                            {difference.strongerVersion}
+                          </span>
+                        </div>
+                        <p className="text-sm leading-relaxed text-[#4A5568]">{difference.summary}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="rounded-xl border border-[#EAE6DF] bg-[#F8F5EE] p-4">
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#8A8578]">
+                      Reasoning
+                    </p>
+                    <p className="text-sm leading-relaxed text-[#1A2332]">{compareResult.reasoning}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm leading-relaxed text-[#64748B]">
+                  Comparison details will appear here.
+                </p>
+              )}
+            </div>
+
+            <div className="mt-5 flex items-center gap-3">
+              <button
+                onClick={() => setCompareOpen(false)}
+                className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-medium text-[#64748B] transition-colors hover:bg-gray-50"
+              >
+                Revise
+              </button>
+              <button
+                onClick={() => { void handleApproveFromCompare() }}
+                disabled={saving || comparing || (storyScore?.blocking?.length ?? 0) > 0}
+                className="flex-1 rounded-lg py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+                style={{ backgroundColor: "#1A2332" }}
+              >
+                Approve current version
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reopen confirmation dialog */}
+      {confirmReopenOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 w-full max-w-sm p-6">
+            <p className="text-sm font-bold text-[#0F172A] mb-1">Reopen this gate?</p>
+            <p className="text-sm text-[#64748B] leading-relaxed mb-5">
+              This post has already been approved. Placing it on hold will reopen the Post gate and may affect downstream gates in Film Studio.
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { setConfirmReopenOpen(false); setConfirmReopenGate(null) }}
+                className="flex-1 py-2 rounded-lg border border-gray-200 text-sm font-medium text-[#64748B] hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmReopen}
+                className="flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-colors"
+                style={{ backgroundColor: "#1A2332" }}
+              >
+                Reopen gate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {shiftConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-6 shadow-2xl">
+            <p className="mb-1 text-sm font-bold text-[#0F172A]">Confirm the audience shift</p>
+            <div className="mb-5 rounded-xl border border-[#EAE6DF] bg-[#F8F5EE] p-4">
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#8A8578]">
+                    Beginning belief
+                  </p>
+                  <p className="text-sm leading-relaxed text-[#1A2332]">{production.shift.beginning}</p>
+                </div>
+                <div className="pt-6 text-lg text-[#C29A5B]">→</div>
+                <div className="min-w-0 flex-1">
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#8A8578]">
+                    End understanding
+                  </p>
+                  <p className="text-sm leading-relaxed text-[#1A2332]">{production.shift.end}</p>
+                </div>
+              </div>
+            </div>
+            <p className="mb-5 text-sm leading-relaxed text-[#64748B]">
+              Does the approved post genuinely achieve this shift?
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShiftConfirmOpen(false)}
+                className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-medium text-[#64748B] transition-colors hover:bg-gray-50"
+              >
+                Not yet
+              </button>
+              <button
+                onClick={confirmApprove}
+                className="flex-1 rounded-lg py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
+                style={{ backgroundColor: "#1A2332" }}
+              >
+                Yes, approve
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Shell>
   )
 }

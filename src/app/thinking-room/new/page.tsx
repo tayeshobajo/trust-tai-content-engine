@@ -18,6 +18,7 @@ import {
   extractTopic,
 } from "@/lib/studio-engine"
 import { emptyGates, saveProduction } from "@/lib/studio-store"
+import { getStudioPrinciples } from "@/lib/studio-memory-store"
 import { ChevronDown, ArrowRight, Lightbulb } from "lucide-react"
 import { assembleArgument } from "@/data/studio"
 
@@ -33,16 +34,42 @@ export default function NewThoughtPage() {
 
   const canExtract = thought.trim().length >= 40
 
-  function handleExtract() {
+  async function handleExtract() {
     if (!canExtract || working) return
     setWorking(true)
 
     const text = thought.trim()
-    const spine = buildSpine(text, sourceType)
-    const sections = buildArgument(text, spine)
-    const shift = buildShift(text, spine)
-    const warnings = checkVoice(text + "\n" + assembleArgument(sections))
     const now = new Date().toISOString()
+    const principles = getStudioPrinciples().map((p) => ({
+      belief: p.belief,
+      layer: p.layer,
+      confidence: p.confidence,
+      behavior: p.behavior,
+    }))
+
+    type AnalysisScores = { spiritFirst: { score: string; note: string }; roadmap: { score: string; note: string } }
+    let spine = buildSpine(text, sourceType)
+    let shift = buildShift(text, spine)
+    let analysisScores: AnalysisScores | null = null
+
+    try {
+      const res = await fetch("/api/studio/analyse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ thought: text, sourceType, principles }),
+      })
+      if (res.ok) {
+        const data = await res.json() as { spine: typeof spine; shift: typeof shift; scores: AnalysisScores }
+        spine = data.spine
+        shift = data.shift
+        analysisScores = data.scores
+      }
+    } catch {
+      // Fall back to deterministic engine — production still created
+    }
+
+    const sections = buildArgument(text, spine)
+    const warnings = checkVoice(text + "\n" + assembleArgument(sections))
 
     const production: Production = {
       id: `prod-${Date.now()}`,
@@ -59,7 +86,10 @@ export default function NewThoughtPage() {
       revisions: [
         {
           at: now,
-          note: "Content spine extracted in the Thinking Room.",
+          note: analysisScores
+            ? `Content spine analysed. Spirit First: ${analysisScores.spiritFirst.score}. Roadmap: ${analysisScores.roadmap.score}.`
+            : "Content spine extracted (deterministic fallback).",
+          sections,
         },
       ],
       gates: emptyGates(),

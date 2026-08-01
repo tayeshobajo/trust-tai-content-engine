@@ -98,6 +98,7 @@ export interface StudioComment {
 export interface Revision {
   at: string
   note: string
+  sections?: ArgumentSection[] | null
 }
 
 export type ConceptKey = "grounded-strange" | "visual-parable" | "cinematic-mechanism"
@@ -151,6 +152,8 @@ export interface FilmPlan {
   continuity: ContinuityItem[]
 }
 
+export type LibraryStatus = "in_production" | "ready" | "published" | "archived"
+
 export interface PublishPackage {
   linkedinPost: string
   caption: string
@@ -159,6 +162,8 @@ export interface PublishPackage {
 }
 
 export interface Production {
+  publishedAt?: string
+  archivedAt?: string
   id: string
   title: string
   sourceType: SourceType
@@ -191,6 +196,13 @@ export function nextGate(p: Production): GateKey | null {
 
 export function approvedGateCount(p: Production): number {
   return GATE_ORDER.filter((k) => p.gates[k].status === "approved").length
+}
+
+export function libraryStatus(p: Production): LibraryStatus {
+  if (p.archivedAt) return "archived"
+  if (p.publishedAt) return "published"
+  if (nextGate(p) === null) return "ready"
+  return "in_production"
 }
 
 export function stageLabel(p: Production): string {

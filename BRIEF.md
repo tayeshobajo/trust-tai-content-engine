@@ -3,6 +3,7 @@
 **Production URL:** studio.trusttai.com  
 **Project:** Trust Tai Content Production Studio  
 **Approved direction source:** Tai's content engine architecture spec, 2026-07-30
+**Intelligence architecture:** `STUDIO_INTELLIGENCE.md`
 
 ## Business Goal
 
@@ -15,6 +16,8 @@ Tai, operating as founder, strategist, editor, and final approver for Trust Tai 
 ## Product Promise
 
 Turn one clear thought into an approved Trust Tai post and an unconventional visual story built around the same truth.
+
+Studio should also learn from each production. Every correction or approval should strengthen its understanding of Tai's worldview, voice, story instincts, taste, and audience without trapping future work inside rigid rules.
 
 ## Operating Philosophy
 
@@ -103,4 +106,3 @@ If that shift is weak, the post is not ready. If the visual does not deepen that
 ## Stack
 
 Use the existing Next.js 16 app, React 19, Tailwind 4, shadcn/Radix components, lucide-react, existing Supabase/store patterns.
-

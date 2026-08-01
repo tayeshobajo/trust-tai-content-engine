@@ -29,7 +29,7 @@ Use the Supabase REST API to create the `posts` table. Make an HTTP POST to:
 `https://kjznbpsvffiysavovgfo.supabase.co/rest/v1/rpc/` — actually, use the Management API SQL endpoint to run this migration:
 
 POST `https://api.supabase.com/v1/projects/kjznbpsvffiysavovgfo/database/query`
-Header: `Authorization: Bearer sbp_6d59ff0baae4a6f26d2eb34503da8124ba72aefa`
+Header: `Authorization: Bearer [REDACTED]`
 
 SQL to run:
 ```sql

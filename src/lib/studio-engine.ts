@@ -208,31 +208,98 @@ const BANNED_PHRASES: { pattern: RegExp; rule: string; label: string }[] = [
   { pattern: /#\w+/g, rule: "No hashtags in body copy", label: "hashtag" },
 ]
 
-export function checkVoice(text: string): VoiceWarning[] {
+export function checkVoice(text: string, settingsOverride?: { bannedWords?: string[]; sentenceLengthWarning?: number; exclamationMarkWarning?: boolean; hashtagWarning?: boolean; pressureCTAWarning?: boolean; emDashWarning?: boolean; consultingClicheWarning?: boolean }): VoiceWarning[] {
+  // Read settings at call time — allows runtime settings to override defaults
+  let settings = settingsOverride
+  if (!settings && typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem("tts_voice_settings")
+      if (raw) settings = JSON.parse(raw) as typeof settingsOverride
+    } catch { /* noop */ }
+  }
+
+  const bannedWords = settings?.bannedWords ?? [
+    "leverage", "synergy", "unlock", "game-changer", "seamless", "empower", "delve"
+  ]
+  const sentenceLimit = settings?.sentenceLengthWarning ?? 32
+  const checkExclamation = settings?.exclamationMarkWarning ?? true
+  const checkHashtag = settings?.hashtagWarning ?? true
+  const checkPressureCTA = settings?.pressureCTAWarning ?? true
+  const checkEmDash = settings?.emDashWarning ?? true
+  const checkConsulting = settings?.consultingClicheWarning ?? true
+
   const warnings: VoiceWarning[] = []
-  for (const { pattern, rule, label } of BANNED_PHRASES) {
+
+  // Em dash
+  if (checkEmDash) {
+    const matches = text.match(/—|–/g)
+    if (matches && matches.length > 0) {
+      warnings.push({ rule: "No em dashes", detail: `Found ${matches.length} em or en dash${matches.length > 1 ? "es" : ""}. Replace with a period or a new line.` })
+    }
+  }
+
+  // Dynamic banned words from settings
+  for (const word of bannedWords) {
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    const pattern = new RegExp(`\\b${escaped}\\b`, "gi")
     const matches = text.match(pattern)
     if (matches && matches.length > 0) {
       warnings.push({
-        rule,
-        detail: `Found "${label}" ${matches.length === 1 ? "once" : matches.length + " times"}. Rewrite in plain, direct language.`,
+        rule: "Banned word",
+        detail: `Found "${word}" ${matches.length === 1 ? "once" : matches.length + " times"}. Rewrite in plain, direct language.`,
       })
     }
   }
-  const exclaims = (text.match(/!/g) ?? []).length
-  if (exclaims > 0) {
-    warnings.push({
-      rule: "Quiet confidence",
-      detail: `${exclaims === 1 ? "One exclamation mark" : exclaims + " exclamation marks"} found. The argument should not need volume.`,
-    })
+
+  // Consulting clichés (built-in, toggleable)
+  if (checkConsulting) {
+    for (const { pattern, rule, label } of BANNED_PHRASES.filter((p) => !/(em|dash|hashtag|CTA)/i.test(p.rule))) {
+      if (bannedWords.some((w) => label.includes(w))) continue // already caught above
+      const matches = text.match(pattern)
+      if (matches && matches.length > 0) {
+        warnings.push({ rule, detail: `Found "${label}" ${matches.length === 1 ? "once" : matches.length + " times"}. Rewrite in plain, direct language.` })
+      }
+    }
   }
-  const longSentences = splitSentences(text).filter((s) => s.split(/\s+/).length > 32)
+
+  // Pressure CTAs
+  if (checkPressureCTA) {
+    for (const { pattern, rule, label } of BANNED_PHRASES.filter((p) => p.rule === "No pressure CTA")) {
+      const matches = text.match(pattern)
+      if (matches && matches.length > 0) {
+        warnings.push({ rule, detail: `Found "${label}". Remove pressure language.` })
+      }
+    }
+  }
+
+  // Hashtags
+  if (checkHashtag) {
+    const hMatches = text.match(/#\w+/g)
+    if (hMatches && hMatches.length > 0) {
+      warnings.push({ rule: "No hashtags in body copy", detail: `Found ${hMatches.length} hashtag${hMatches.length > 1 ? "s" : ""} in body copy.` })
+    }
+  }
+
+  // Exclamation marks
+  if (checkExclamation) {
+    const exclaims = (text.match(/!/g) ?? []).length
+    if (exclaims > 0) {
+      warnings.push({
+        rule: "Quiet confidence",
+        detail: `${exclaims === 1 ? "One exclamation mark" : exclaims + " exclamation marks"} found. The argument should not need volume.`,
+      })
+    }
+  }
+
+  // Sentence length
+  const longSentences = splitSentences(text).filter((s) => s.split(/\s+/).length > sentenceLimit)
   if (longSentences.length > 0) {
     warnings.push({
       rule: "Short sentences carry the cadence",
-      detail: `${longSentences.length} sentence${longSentences.length === 1 ? "" : "s"} over 32 words. Break them so the post reads like thinking out loud.`,
+      detail: `${longSentences.length} sentence${longSentences.length === 1 ? "" : "s"} over ${sentenceLimit} words. Break them so the post reads like thinking out loud.`,
     })
   }
+
   return warnings
 }
 
@@ -264,7 +331,7 @@ const GROUNDED_STRANGE: ConceptTemplate[] = [
     whyItEarnsAttention: "Frozen time inside busy motion is visually wrong in a way the eye catches within two seconds.",
     represents: "Motion mistaken for progress. TOPIC does not advance because nobody steps back far enough to see it.",
     reveal: "The clock responds to perspective, not activity. Stepping back is the only action that moves time forward.",
-    producibility: "High. Single interior, static clock prop, one repeated camera move. Veo handles the freeze cleanly with locked framing.",
+    producibility: "High. Single interior, static clock prop, one repeated camera move. Build still frames first, then test motion in YouTube Create or a paid renderer later.",
     shotCount: 7,
   },
   {
@@ -333,7 +400,7 @@ const CINEMATIC_MECHANISM: ConceptTemplate[] = [
     whyItEarnsAttention: "Public pressure against private precision creates tension without a single word of dialogue.",
     represents: "Foundational work on TOPIC done properly while the market watches and waits.",
     reveal: "The performance can only be as good as the tuning nobody applauded. The unseen work was the concert.",
-    producibility: "High. One location, one character, one prop. Sound design carries the arc, which Veo natively supports.",
+    producibility: "High. One location, one character, one prop. Sound design can be handled in edit after the free motion test works.",
     shotCount: 6,
   },
 ]
@@ -347,10 +414,7 @@ function fillTopic(text: string, topic: string): string {
 }
 
 function estimateCost(shotCount: number): string {
-  // Assumes two takes per shot on 8s clips at roughly 75 cents to 1.50 per clip.
-  const low = Math.round(shotCount * 2 * 0.75)
-  const high = Math.round(shotCount * 2 * 1.5)
-  return `$${low} to $${high} in render credits (${shotCount} shots, 2 takes each, 8s clips)`
+  return `Free first pass (${shotCount} approved frames, YouTube motion test before paid render)`
 }
 
 export function buildConcepts(thought: string, spine: ContentSpine): ConceptDirection[] {
@@ -397,14 +461,14 @@ export function buildTreatment(concept: ConceptDirection): string[] {
 
 export function buildShots(concept: ConceptDirection): Shot[] {
   const beats: { description: string; purpose: string; route: string }[] = [
-    { description: `Establishing wide. The world of ${concept.premise.toLowerCase().replace(/\.$/, "")}. Everything looks normal.`, purpose: "Set the credible baseline", route: "Veo 3.1" },
-    { description: "Medium on the main character in motion. Confident, unhurried, wrong.", purpose: "Introduce the surface behavior", route: "Veo 3.1" },
-    { description: "The impossible condition shown plainly for the first time. No camera trickery.", purpose: "Plant the hook", route: "Veo 3.1" },
-    { description: "Repetition beat. Same framing as shot 2 with small differences accumulating.", purpose: "Build the loop", route: "Luma Ray 3.2" },
-    { description: "Close on the detail that matters: the marks, the pattern, the system moving.", purpose: "Shift attention from goal to system", route: "Veo 3.1" },
-    { description: "The turn. The observer stops, studies, understands. Held longer than expected.", purpose: "Pivot the meaning", route: "Runway Gen-4.5" },
-    { description: "The reveal composition. The whole system visible in one frame.", purpose: "Deliver the argument visually", route: "Veo 3.1" },
-    { description: "Final still. The closing line appears as quiet text. Two-beat hold.", purpose: "Land the remember sentence", route: "Luma Ray 3.2" },
+    { description: `Establishing wide. The world of ${concept.premise.toLowerCase().replace(/\.$/, "")}. Everything looks normal.`, purpose: "Set the credible baseline", route: "ChatGPT frame" },
+    { description: "Medium on the main character in motion. Confident, unhurried, wrong.", purpose: "Introduce the surface behavior", route: "ChatGPT frame" },
+    { description: "The impossible condition shown plainly for the first time. No camera trickery.", purpose: "Plant the hook", route: "ChatGPT frame" },
+    { description: "Repetition beat. Same framing as shot 2 with small differences accumulating.", purpose: "Build the loop", route: "YouTube motion test" },
+    { description: "Close on the detail that matters: the marks, the pattern, the system moving.", purpose: "Shift attention from goal to system", route: "ChatGPT frame" },
+    { description: "The turn. The observer stops, studies, understands. Held longer than expected.", purpose: "Pivot the meaning", route: "YouTube motion test" },
+    { description: "The reveal composition. The whole system visible in one frame.", purpose: "Deliver the argument visually", route: "ChatGPT frame" },
+    { description: "Final still. The closing line appears as quiet text. Two-beat hold.", purpose: "Land the remember sentence", route: "Edit hold" },
   ]
   return beats.slice(0, Math.max(6, Math.min(8, concept.shotCount))).map((b, i) => ({
     no: i + 1,
@@ -425,10 +489,10 @@ export function buildKeyframes(concept: ConceptDirection): KeyframePlan {
 
 export function buildModelRoute(): ModelRouteStep[] {
   return [
-    { role: "Keyframes and references", model: "Reference-aware image model", why: "Character, wardrobe, environment, palette, and first/last frames locked before spending video credits." },
-    { role: "Primary shots", model: "Veo 3.1", why: "8s clips, native audio, first/last frame control, portrait and landscape, reference images." },
-    { role: "Performance and turns", model: "Runway Gen-4.5", why: "Image-to-video with stronger character beats and multi-shot consistency." },
-    { role: "Repair and extension", model: "Luma Ray 3.2", why: "Editing, extension, reframing, and keyframe interpolation for loop and hold shots." },
+    { role: "Frames first", model: "ChatGPT image generation", why: "Approve the story visually before spending video credits." },
+    { role: "Free motion test", model: "YouTube Create / Shorts", why: "Use free mobile AI clips or photo-to-video to test whether the approved frames move well." },
+    { role: "Paid render, later", model: "Veo API / Higgsfield", why: "Only use paid rendering after the free test proves the story connects." },
+    { role: "Final edit", model: "YouTube Create, CapCut, or DaVinci Resolve", why: "Captions, sound, timing, and export stay editable outside the generator." },
   ]
 }
 

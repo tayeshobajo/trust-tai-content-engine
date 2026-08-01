@@ -6,7 +6,7 @@ import Shell from "@/components/Shell"
 import { nextGate, stageLabel, type Production } from "@/data/studio"
 import { getProductions, PRODUCTIONS_CHANGED_EVENT } from "@/lib/studio-store"
 import { productionGradient } from "@/lib/studio-badges"
-import { Plus, ArrowRight, Clock } from "lucide-react"
+import { Plus, ArrowRight, Clock, Film } from "lucide-react"
 import { Suspense } from "react"
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -95,14 +95,24 @@ function ThinkingRoomQueue() {
           >
             Thinking Room
           </p>
-          <button
-            onClick={() => router.push("/thinking-room/new")}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded transition-opacity hover:opacity-90"
-            style={{ backgroundColor: "#1A2332", color: "#FFFFFF" }}
-          >
-            Bring a thought
-            <Plus className="w-3 h-3" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push("/thinking-room/pilot")}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded transition-opacity hover:opacity-90"
+              style={{ backgroundColor: "#C29A5B", color: "#FFFFFF" }}
+            >
+              <Film className="w-3 h-3" />
+              Pilot film
+            </button>
+            <button
+              onClick={() => router.push("/thinking-room/new")}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded transition-opacity hover:opacity-90"
+              style={{ backgroundColor: "#1A2332", color: "#FFFFFF" }}
+            >
+              Bring a thought
+              <Plus className="w-3 h-3" />
+            </button>
+          </div>
         </div>
 
         <div className="px-8 pt-7 pb-16">
