@@ -54,9 +54,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
     };
     load();
     window.addEventListener(PRODUCTIONS_CHANGED_EVENT, load);
-    const onVisible = () => {
-      if (!document.hidden) load();
-    };
+    const onVisible = () => { if (!document.hidden) load(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.removeEventListener(PRODUCTIONS_CHANGED_EVENT, load);
@@ -73,7 +71,6 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile backdrop */}
       {mobileOpen && (
         <div
           className="fixed inset-0 bg-black/60 z-40 md:hidden"
@@ -83,31 +80,29 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
       )}
 
       <aside
-        className={`fixed left-0 top-0 h-full w-[280px] flex flex-col z-50 transform transition-transform duration-200 md:translate-x-0 ${
+        className={`fixed left-0 top-0 h-full w-[140px] flex flex-col z-50 transform transition-transform duration-200 md:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         style={{ backgroundColor: "#0D1626" }}
       >
         {/* Wordmark */}
-        <div className="flex items-center justify-between px-6 pt-7 pb-5">
-          <div>
-            <p
-              className="font-serif text-white leading-none"
-              style={{ fontSize: "17px", letterSpacing: "-0.01em" }}
-            >
-              Trust Tai
-            </p>
-            <p
-              className="text-[10px] font-semibold tracking-[0.18em] uppercase mt-0.5"
-              style={{ color: "#C29A5B" }}
-            >
-              Studio
-            </p>
-          </div>
+        <div className="px-5 pt-6 pb-5">
+          <p
+            className="font-serif text-white leading-none"
+            style={{ fontSize: "15px", letterSpacing: "-0.01em" }}
+          >
+            Trust Tai
+          </p>
+          <p
+            className="text-[9px] font-bold tracking-[0.2em] uppercase mt-[3px]"
+            style={{ color: "#C29A5B" }}
+          >
+            Studio
+          </p>
           {onClose && (
             <button
               onClick={onClose}
-              className="md:hidden p-1 text-white/50 hover:text-white transition-colors"
+              className="md:hidden absolute top-4 right-4 p-1 text-white/50 hover:text-white"
               aria-label="Close navigation"
             >
               <X className="w-4 h-4" />
@@ -115,14 +110,11 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
           )}
         </div>
 
-        {/* Top divider */}
-        <div
-          className="mx-6 border-t"
-          style={{ borderColor: "rgba(255,255,255,0.08)" }}
-        />
+        {/* Divider */}
+        <div className="mx-5 border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
 
         {/* Nav */}
-        <nav className="flex-1 px-3 pt-3 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-2 pt-2 space-y-[2px] overflow-y-auto">
           {navItems.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
@@ -133,29 +125,26 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
                 key={item.href}
                 href={item.href}
                 onClick={onClose}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors relative"
+                className="flex items-center gap-2.5 px-3 py-2 rounded-sm text-xs transition-colors relative"
                 style={{
                   backgroundColor: active ? "#1A2740" : "transparent",
-                  color: active ? "#FFFFFF" : "rgba(212,208,200,0.7)",
+                  color: active ? "#FFFFFF" : "rgba(212,208,200,0.65)",
                 }}
               >
-                {/* Gold left accent bar on active */}
                 {active && (
                   <span
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 rounded-r-full"
                     style={{ backgroundColor: "#C29A5B" }}
                   />
                 )}
                 <Icon
-                  className="w-4 h-4 flex-shrink-0"
-                  style={{
-                    color: active ? "#FFFFFF" : "rgba(212,208,200,0.55)",
-                  }}
+                  className="w-[14px] h-[14px] flex-shrink-0"
+                  style={{ color: active ? "#FFFFFF" : "rgba(212,208,200,0.5)" }}
                 />
-                <span className="flex-1 truncate font-medium">{item.label}</span>
+                <span className="flex-1 truncate font-medium leading-tight">{item.label}</span>
                 {count > 0 && (
                   <span
-                    className="text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                    className="text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: "#2F62D8", color: "#FFFFFF" }}
                   >
                     {count}
@@ -166,48 +155,34 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
           })}
         </nav>
 
-        {/* Bottom section */}
-        <div className="px-3 pb-5 mt-2">
-          <div
-            className="mx-3 border-t mb-3"
-            style={{ borderColor: "rgba(255,255,255,0.08)" }}
-          />
+        {/* Bottom */}
+        <div className="px-2 pb-4 mt-2">
+          <div className="mx-3 border-t mb-2" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
+
           <Link
             href="/settings"
             onClick={onClose}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-sm text-xs transition-colors"
             style={{
               backgroundColor: pathname === "/settings" ? "#1A2740" : "transparent",
-              color:
-                pathname === "/settings"
-                  ? "#FFFFFF"
-                  : "rgba(212,208,200,0.55)",
+              color: pathname === "/settings" ? "#FFFFFF" : "rgba(212,208,200,0.5)",
             }}
           >
-            <Settings className="w-4 h-4 flex-shrink-0" />
+            <Settings className="w-[14px] h-[14px] flex-shrink-0" />
             <span className="font-medium">Settings</span>
           </Link>
 
           {/* User row */}
-          <div className="flex items-center gap-3 px-3 py-2.5 mt-1">
+          <div className="flex items-center gap-2 px-3 py-2 mt-1">
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
-              style={{
-                border: "1.5px solid #C29A5B",
-                color: "#C29A5B",
-                backgroundColor: "transparent",
-              }}
+              className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold"
+              style={{ border: "1.5px solid #C29A5B", color: "#C29A5B" }}
             >
               TS
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-white truncate">
-                Tai Shobajo
-              </p>
-              <p
-                className="text-[11px] truncate"
-                style={{ color: "rgba(212,208,200,0.45)" }}
-              >
+              <p className="text-xs font-medium text-white truncate leading-tight">Tai Shobajo</p>
+              <p className="text-[10px] truncate leading-tight" style={{ color: "rgba(212,208,200,0.4)" }}>
                 Founder and final approver
               </p>
             </div>

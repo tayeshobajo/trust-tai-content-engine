@@ -13,7 +13,7 @@ export default function Shell({ children }: ShellProps) {
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: "#F4F1EA" }}>
       <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
-      <div className="flex-1 min-h-screen md:ml-[280px] min-w-0">
+      <div className="flex-1 min-h-screen md:ml-[140px] min-w-0">
         {/* Mobile top bar */}
         <header
           className="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b"
