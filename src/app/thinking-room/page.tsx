@@ -1,247 +1,284 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import Shell from "@/components/Shell"
-import {
-  SOURCE_TYPES,
-  SPINE_LABELS,
-  type ArgumentSection,
-  type AudienceShift,
-  type ContentSpine,
-  type Production,
-  type SourceType,
-  type VoiceWarning,
-  assembleArgument,
-} from "@/data/studio"
-import {
-  buildArgument,
-  buildFilmPlan,
-  buildShift,
-  buildSpine,
-  checkVoice,
-  deriveTitle,
-} from "@/lib/studio-engine"
-import { emptyGates, saveProduction } from "@/lib/studio-store"
-import { ArrowRight, Lightbulb, ShieldAlert, ShieldCheck } from "lucide-react"
+import { nextGate, stageLabel, type Production } from "@/data/studio"
+import { getProductions, PRODUCTIONS_CHANGED_EVENT } from "@/lib/studio-store"
+import { productionGradient } from "@/lib/studio-badges"
+import { Plus, ArrowRight, Clock } from "lucide-react"
+import { Suspense } from "react"
 
-interface DraftResult {
-  spine: ContentSpine
-  shift: AudienceShift
-  sections: ArgumentSection[]
-  warnings: VoiceWarning[]
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return "Just now"
+  if (min < 60) return `${min}m ago`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr}h ago`
+  const days = Math.floor(hr / 24)
+  if (days === 1) return "Yesterday"
+  return `${days}d ago`
 }
 
-export default function ThinkingRoomPage() {
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  })
+}
+
+type FilterKey = "all" | "truth-review" | "developing" | "held"
+
+function filterLabel(k: FilterKey): string {
+  const map: Record<FilterKey, string> = {
+    all: "All thoughts",
+    "truth-review": "Truth review",
+    developing: "Developing",
+    held: "Held",
+  }
+  return map[k]
+}
+
+// ─── Queue inner (needs Suspense for useSearchParams) ─────────────────────────
+
+function ThinkingRoomQueue() {
   const router = useRouter()
-  const [thought, setThought] = useState("")
-  const [sourceType, setSourceType] = useState<SourceType>("Typed thought")
-  const [result, setResult] = useState<DraftResult | null>(null)
-  const [saved, setSaved] = useState(false)
+  const searchParams = useSearchParams()
+  const filterParam = (searchParams.get("filter") ?? "all") as FilterKey
+  const [productions, setProductions] = useState<Production[]>([])
+  const [loaded, setLoaded] = useState(false)
 
-  const canExtract = thought.trim().length >= 40
+  useEffect(() => {
+    const load = () => { setProductions(getProductions()); setLoaded(true) }
+    load()
+    window.addEventListener(PRODUCTIONS_CHANGED_EVENT, load)
+    return () => window.removeEventListener(PRODUCTIONS_CHANGED_EVENT, load)
+  }, [])
 
-  function handleExtract() {
-    const text = thought.trim()
-    if (text.length < 40) return
-    const spine = buildSpine(text, sourceType)
-    const sections = buildArgument(text, spine)
-    setResult({
-      spine,
-      shift: buildShift(text, spine),
-      sections,
-      warnings: checkVoice(text + "\n" + assembleArgument(sections)),
-    })
-    setSaved(false)
-  }
+  // Thinking Room shows only productions that haven't cleared Truth gate yet
+  // plus those sitting at truth review
+  const thinkingProductions = productions.filter(
+    (p) => nextGate(p) === "truth" || p.gates.truth.status !== "approved"
+  )
 
-  function handleSave() {
-    if (!result) return
-    const now = new Date().toISOString()
-    const production: Production = {
-      id: `prod-${Date.now()}`,
-      title: deriveTitle(result.spine),
-      sourceType,
-      sourceThought: thought.trim(),
-      createdAt: now,
-      updatedAt: now,
-      spine: result.spine,
-      shift: result.shift,
-      sections: result.sections,
-      voiceWarnings: result.warnings,
-      comments: [],
-      revisions: [{ at: now, note: "Spine extracted and first draft argument scaffolded in the Thinking Room." }],
-      gates: emptyGates(),
-      film: buildFilmPlan(thought.trim(), result.spine),
-    }
-    saveProduction(production)
-    setSaved(true)
-    router.push("/approvals")
-  }
+  const filters: FilterKey[] = ["all", "truth-review", "held"]
+  const activeFilter: FilterKey = filters.includes(filterParam) ? filterParam : "all"
+
+  const displayed =
+    activeFilter === "all"
+      ? thinkingProductions
+      : activeFilter === "truth-review"
+      ? thinkingProductions.filter((p) => nextGate(p) === "truth")
+      : activeFilter === "held"
+      ? thinkingProductions.filter((p) => Object.values(p.gates).some((g) => g.status === "hold"))
+      : thinkingProductions
+
+  const truthReviewCount = thinkingProductions.filter((p) => nextGate(p) === "truth").length
 
   return (
     <Shell>
-      <div className="px-4 md:px-8 py-6 max-w-5xl">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-[#0F172A]">Thinking Room</h1>
-          <p className="text-sm text-[#64748B] mt-1">
-            One clear thought in. A content spine and a first argument out.
+      <div className="min-h-screen" style={{ backgroundColor: "#F4F1EA" }}>
+
+        {/* ── Header ── */}
+        <div
+          className="flex items-center justify-between px-8 py-[10px] border-b"
+          style={{ borderColor: "#DDD8CE" }}
+        >
+          <p
+            className="text-[10px] font-bold tracking-[0.15em] uppercase"
+            style={{ color: "#8A8578" }}
+          >
+            Thinking Room
           </p>
+          <button
+            onClick={() => router.push("/thinking-room/new")}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded transition-opacity hover:opacity-90"
+            style={{ backgroundColor: "#1A2332", color: "#FFFFFF" }}
+          >
+            Bring a thought
+            <Plus className="w-3 h-3" />
+          </button>
         </div>
 
-        {/* Source capture */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-5 mb-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
-            <h2 className="text-sm font-semibold text-[#0F172A]">Source capture</h2>
-            <select
-              value={sourceType}
-              onChange={(e) => setSourceType(e.target.value as SourceType)}
-              className="h-8 rounded-lg border border-gray-200 bg-white px-2.5 text-sm text-[#0F172A] outline-none focus:border-[#2563EB] w-full md:w-auto"
-            >
-              {SOURCE_TYPES.map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-          <textarea
-            value={thought}
-            onChange={(e) => setThought(e.target.value)}
-            rows={6}
-            placeholder="Write the thought the way you would say it. A moment with a client, a pattern you keep seeing, a question you cannot put down."
-            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-[#0F172A] placeholder:text-[#94A3B8] outline-none focus:border-[#2563EB] resize-y leading-relaxed"
-          />
-          <div className="flex items-center justify-between mt-3">
-            <span className="text-xs text-[#94A3B8]">
-              {canExtract
-                ? "Ready to extract"
-                : "Write at least a few sentences before extracting"}
-            </span>
-            <button
-              onClick={handleExtract}
-              disabled={!canExtract}
-              className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-            >
-              <Lightbulb className="w-4 h-4" />
-              Extract the spine
-            </button>
-          </div>
-        </div>
+        <div className="px-8 pt-7 pb-16">
 
-        {result && (
-          <>
-            {/* Spine + audience shift */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
-              <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 shadow-sm p-5">
-                <h2 className="text-sm font-semibold text-[#0F172A] mb-4">Content spine</h2>
-                <div className="space-y-4">
-                  {SPINE_LABELS.map(({ key, label }) => (
-                    <div key={key}>
-                      <p className="text-xs uppercase tracking-wider text-[#94A3B8] mb-1">
-                        {label}
-                      </p>
-                      <p className="text-sm text-[#0F172A] leading-relaxed">
-                        {result.spine[key]}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          {/* ── Page heading ── */}
+          <h1
+            className="font-serif mb-1"
+            style={{ fontSize: "42px", color: "#1A2332", fontWeight: 400, letterSpacing: "-0.01em" }}
+          >
+            Thinking Room
+          </h1>
+          <p className="text-[13px] mb-7" style={{ color: "#8A8578" }}>
+            Where a raw thought becomes an approved truth.
+          </p>
 
-              <div className="space-y-5">
-                <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
-                  <h2 className="text-sm font-semibold text-[#0F172A] mb-4">Audience shift</h2>
-                  <p className="text-xs uppercase tracking-wider text-[#94A3B8] mb-1">
-                    At the beginning
-                  </p>
-                  <p className="text-sm text-[#0F172A] leading-relaxed mb-4">
-                    {result.shift.beginning}
-                  </p>
-                  <p className="text-xs uppercase tracking-wider text-[#94A3B8] mb-1">
-                    By the end
-                  </p>
-                  <p className="text-sm text-[#0F172A] leading-relaxed">
-                    {result.shift.end}
-                  </p>
-                  <p className="text-xs text-[#64748B] mt-4 pt-3 border-t border-gray-100 leading-relaxed">
-                    If this shift is weak, the post is not ready. If the visual does not
-                    deepen it, the film should not be produced.
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    {result.warnings.length === 0 ? (
-                      <ShieldCheck className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <ShieldAlert className="w-4 h-4 text-amber-500" />
-                    )}
-                    <h2 className="text-sm font-semibold text-[#0F172A]">Voice check</h2>
-                  </div>
-                  {result.warnings.length === 0 ? (
-                    <p className="text-sm text-[#64748B]">
-                      No voice rule violations found in the source or draft.
-                    </p>
-                  ) : (
-                    <ul className="space-y-2.5">
-                      {result.warnings.map((w, i) => (
-                        <li key={i}>
-                          <p className="text-xs font-semibold text-amber-700">{w.rule}</p>
-                          <p className="text-xs text-[#64748B] leading-relaxed">{w.detail}</p>
-                        </li>
-                      ))}
-                    </ul>
+          {/* ── Filter tabs ── */}
+          <div className="flex items-center gap-1 mb-6">
+            {filters.map((f) => {
+              const active = f === activeFilter
+              const count = f === "truth-review" ? truthReviewCount : undefined
+              return (
+                <button
+                  key={f}
+                  onClick={() => router.push(`/thinking-room${f === "all" ? "" : `?filter=${f}`}`)}
+                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-sm transition-colors"
+                  style={{
+                    backgroundColor: active ? "#1A2332" : "transparent",
+                    color: active ? "#FFFFFF" : "#8A8578",
+                    border: active ? "none" : "1px solid #DDD8CE",
+                  }}
+                >
+                  {filterLabel(f)}
+                  {count !== undefined && count > 0 && (
+                    <span
+                      className="text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: active ? "#FFFFFF" : "#2F62D8", color: active ? "#1A2332" : "#FFFFFF" }}
+                    >
+                      {count}
+                    </span>
                   )}
-                </div>
-              </div>
-            </div>
+                </button>
+              )
+            })}
+          </div>
 
-            {/* Draft argument preview */}
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-5 mb-6">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
-                <h2 className="text-sm font-semibold text-[#0F172A]">
-                  Draft argument preview
-                </h2>
-                <span className="text-xs text-[#94A3B8]">
-                  Trust Tai post structure, eight sections
-                </span>
-              </div>
-              <div className="space-y-5">
-                {result.sections.map((s) => (
-                  <div key={s.name} className="grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-6">
-                    <div className="lg:col-span-2">
-                      <p className="text-xs uppercase tracking-wider text-[#94A3B8] mb-1">
-                        {s.name}
-                      </p>
-                      <p className="text-sm text-[#0F172A] leading-relaxed whitespace-pre-line">
-                        {s.text}
-                      </p>
-                    </div>
-                    <p className="text-xs text-[#64748B] leading-relaxed lg:pt-5">
-                      {s.rationale}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {/* ── Production list ── */}
+          {loaded && displayed.length === 0 ? (
 
-            {/* Save */}
-            <div className="flex items-center justify-end gap-3 pb-6">
-              <span className="text-xs text-[#94A3B8]">
-                Saving opens the Approval Desk. Nothing advances without your decision.
-              </span>
-              <button
-                onClick={handleSave}
-                disabled={saved}
-                className="flex items-center gap-2 bg-[#0F172A] hover:bg-[#1E293B] disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+            /* Empty state */
+            <div
+              className="flex flex-col items-start py-12 px-8 rounded-md"
+              style={{ border: "1px solid #DDD8CE", backgroundColor: "#FFFFFF" }}
+            >
+              <p
+                className="font-serif mb-2"
+                style={{ fontSize: "22px", color: "#1A2332", fontWeight: 400 }}
               >
-                Send to Approval Desk
-                <ArrowRight className="w-4 h-4" />
+                The room is quiet.
+              </p>
+              <p className="text-sm mb-5" style={{ color: "#8A8578" }}>
+                Everything starts with one thought worth arguing.
+              </p>
+              <button
+                onClick={() => router.push("/thinking-room/new")}
+                className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-sm transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "#1A2332", color: "#FFFFFF" }}
+              >
+                Bring a thought
+                <Plus className="w-3 h-3" />
               </button>
             </div>
-          </>
-        )}
+
+          ) : (
+
+            <div
+              className="rounded-md overflow-hidden"
+              style={{ border: "1px solid #DDD8CE", backgroundColor: "#FFFFFF" }}
+            >
+              {displayed.map((p, i) => {
+                const gate = nextGate(p)
+                const isTruthReview = gate === "truth"
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => router.push(`/thinking-room/${p.id}`)}
+                    className="w-full text-left flex items-center gap-5 px-5 py-4 transition-colors hover:bg-black/[0.02] group"
+                    style={{ borderTop: i === 0 ? "none" : "1px solid #EAE6DF" }}
+                  >
+                    {/* Gradient thumb */}
+                    <div
+                      className="w-12 h-12 rounded-sm flex-shrink-0"
+                      style={{ background: productionGradient(p.title) }}
+                    />
+
+                    {/* Main info */}
+                    <div className="flex-1 min-w-0">
+                      {isTruthReview && (
+                        <p
+                          className="text-[9px] font-bold tracking-[0.14em] uppercase mb-0.5"
+                          style={{ color: "#C29A5B" }}
+                        >
+                          Truth Review
+                        </p>
+                      )}
+                      <p
+                        className="font-serif text-sm leading-snug group-hover:underline"
+                        style={{ color: "#1A2332", fontWeight: 400 }}
+                      >
+                        {p.title}
+                      </p>
+                      <p className="text-[11px] mt-0.5 line-clamp-1" style={{ color: "#8A8578" }}>
+                        {p.sourceThought.slice(0, 100)}
+                        {p.sourceThought.length > 100 ? "..." : ""}
+                      </p>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span
+                          className="text-[10px] px-2 py-0.5 rounded-sm"
+                          style={{
+                            backgroundColor: isTruthReview ? "rgba(47,98,216,0.08)" : "rgba(194,154,91,0.1)",
+                            color: isTruthReview ? "#2F62D8" : "#8A6230",
+                          }}
+                        >
+                          {stageLabel(p)}
+                        </span>
+                        <span className="flex items-center gap-1 text-[10px]" style={{ color: "#C0BAB0" }}>
+                          <Clock className="w-2.5 h-2.5" />
+                          {relativeTime(p.updatedAt)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* CTA */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-xs font-medium" style={{ color: "#8A8578" }}>
+                        {formatDate(p.createdAt)}
+                      </span>
+                      <div
+                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-sm"
+                        style={{ border: "1px solid #DDD8CE", color: "#1A2332", backgroundColor: "#FFFFFF" }}
+                      >
+                        Continue
+                        <ArrowRight className="w-3 h-3" />
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* New thought CTA at bottom if list has items */}
+          {loaded && displayed.length > 0 && (
+            <div className="mt-6 flex items-center justify-between">
+              <p className="text-xs" style={{ color: "#8A8578" }}>
+                {displayed.length} thought{displayed.length === 1 ? "" : "s"} in the room
+              </p>
+              <button
+                onClick={() => router.push("/thinking-room/new")}
+                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-sm transition-colors hover:bg-black/5"
+                style={{ border: "1px solid #DDD8CE", color: "#1A2332" }}
+              >
+                Bring another thought
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </Shell>
+  )
+}
+
+export default function ThinkingRoomPage() {
+  return (
+    <Suspense>
+      <ThinkingRoomQueue />
+    </Suspense>
   )
 }
