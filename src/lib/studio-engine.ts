@@ -17,6 +17,7 @@ import type {
   VoiceWarning,
 } from "@/data/studio"
 import { assembleArgument } from "@/data/studio"
+import { CANON_SCENE_003_ORCHESTRATION } from "@/lib/world-bible"
 
 // ─── Text helpers ─────────────────────────────────────────────────────────────
 
@@ -470,13 +471,20 @@ export function buildShots(concept: ConceptDirection): Shot[] {
     { description: "The reveal composition. The whole system visible in one frame.", purpose: "Deliver the argument visually", route: "ChatGPT frame" },
     { description: "Final still. The closing line appears as quiet text. Two-beat hold.", purpose: "Land the remember sentence", route: "Edit hold" },
   ]
-  return beats.slice(0, Math.max(6, Math.min(8, concept.shotCount))).map((b, i) => ({
-    no: i + 1,
-    description: b.description,
-    durationSec: 8,
-    route: b.route,
-    purpose: b.purpose,
-  }))
+  return beats.slice(0, Math.max(6, Math.min(8, concept.shotCount))).map((b, i) => {
+    const no = i + 1
+    return {
+      no,
+      description: b.description,
+      durationSec: 8,
+      route: b.route,
+      purpose: b.purpose,
+      // Attach canonical orchestration at generation time so every shot is
+      // born choreographed. Productions that need a custom plan can override
+      // per-shot after generation.
+      orchestration: CANON_SCENE_003_ORCHESTRATION[no],
+    }
+  })
 }
 
 export function buildKeyframes(concept: ConceptDirection): KeyframePlan {

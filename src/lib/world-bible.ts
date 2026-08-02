@@ -196,13 +196,132 @@ export const RESTRAINT = `RESTRAINT: Remove one-third of the magic. The world is
 // 10. Master Prompt Assembly
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Framing brief derivation — translates orchestration into composition language
+// for the image generator (which doesn't understand "push-in" as a motion command,
+// but does understand implied camera position, depth, and focal emphasis).
+// ---------------------------------------------------------------------------
+
+const CAMERA_DIRECTION_COMPOSITION: Record<CameraDirection, string> = {
+  "push-in": "Compose as if the camera is close and moving toward the subject. Foreground soft. Subject sharp and central. Frame implies approach — the viewer is entering the scene, not observing from outside.",
+  "pull-back": "Compose for maximum revelatory scale. Wide field. Subject anchored in lower third or center — surrounded by the world, not cropped by it. Frame implies withdrawal — the world is being revealed behind and around the subject.",
+  "drift-left": "Compose with visual weight and subject entry from the right side of frame. Leading lines run right to left. The frame implies lateral reading — like a sentence being finished.",
+  "drift-right": "Compose with visual weight and subject entry from the left side of frame. Leading lines run left to right. The frame implies a sentence beginning — something about to be read.",
+  "rise": "Compose from a slightly low angle looking upward. Horizon low or absent. Architecture and sky prominent. Frame implies ascent — the perspective is climbing toward systemic view.",
+  "descend": "Compose from above or at eye level descending. Frame implies the camera coming to the human — witness, not surveillance. Character grounded, environment receding.",
+  "hold-still": "Compose for a locked frame that will live entirely through internal motion. Everything that matters must be inside the frame already. Strong symmetry or considered asymmetry — the composition bears weight without movement.",
+  "orbit-slow": "Compose with the subject precisely centered, surrounded by world that can rotate. Radial symmetry or strong central anchor. The subject is the axis; the world is its context.",
+}
+
+const EMOTIONAL_BEAT_COMPOSITION: Record<EmotionalBeat, string> = {
+  recognition: "Lighting falls on the face or the thing being understood. Eyes or gaze visible. The moment of seeing is the compositional center.",
+  weight: "Subject carries visible mass — physical burden, posture, scale of what presses down. Negative space above should feel heavy, not open. The frame holds the weight.",
+  scale: "Human figure small but dignified within an enormous architectural or natural system. The scale must enlarge without diminishing. Use depth to make the world vast and the person real.",
+  intimacy: "Tight. Close. The world falls away. Only the character and the thing that matters. Shallow depth of field. Warm, specific light on skin.",
+  threshold: "Frame bisected — subject at an edge, door, bridge, or divide. One side known. One side unknown or larger. The character is not yet across.",
+  arrival: "Subject has reached something. Composition is resolved — balanced, at rest. Not dynamic. The tension of earlier shots releases into stillness here.",
+  revelation: "The full system visible in one frame. What was hidden or partial is now legible. Wide, layered, deeply composed. The viewer sees everything the character sees.",
+  memory: "Slightly dreamlike quality in depth or light — soft at the edges, sharp at the emotional center. The past is present. Layers in the frame speak to time.",
+}
+
+const TRANSITION_COMPOSITION: Record<TransitionType, string> = {
+  "hard-cut": "Frame can be compositionally independent — it does not need to rhyme with what precedes or follows. Clean edges. Clear subject.",
+  "match-cut": "This frame must share a visual axis, shape, or spatial reference with the adjacent shot. Compose so that a specific element (silhouette, architectural line, light direction, or subject position) will rhyme across the cut.",
+  "dissolve": "Compose with atmospheric softness at the edges. The frame should feel like it could blend — tonal continuity with the adjacent shot matters. Avoid harsh contrast at frame edges.",
+  "breath": "Compose for stillness and resolve. This frame is the exhale. Nothing dynamic at the edges. The composition should feel complete in itself.",
+}
+
+/**
+ * Derives a composed framing brief from orchestration data.
+ * This translates motion-language (camera direction, emotional beat, transitions)
+ * into static composition language that an image model can act on.
+ */
+export function buildOrchestrationFramingBrief(orchestration: SceneOrchestration): string {
+  const lines: string[] = [
+    `=== SCENE CONDUCTOR — FRAMING BRIEF ===`,
+    `This frame is one image in a choreographed sequence. Compose it so it belongs to the film, not just to itself.`,
+    ``,
+    `CAMERA POSITION / COMPOSITION INTENT: ${orchestration.cameraDirection}`,
+    CAMERA_DIRECTION_COMPOSITION[orchestration.cameraDirection],
+    ``,
+    `EMOTIONAL BEAT THIS FRAME MUST LAND: ${orchestration.emotionalBeat}`,
+    EMOTIONAL_BEAT_COMPOSITION[orchestration.emotionalBeat],
+    ``,
+  ]
+
+  if (orchestration.incomingMomentum) {
+    lines.push(
+      `VISUAL CONTINUITY (incoming from previous shot):`,
+      `The previous shot established a ${orchestration.incomingMomentum.direction} with a ${orchestration.incomingMomentum.transitionType} handoff. This frame must receive that energy compositionally — the eye should not have to reset from scratch.`,
+      ``,
+    )
+  } else {
+    lines.push(
+      `OPENING FRAME: No previous shot to receive from. This frame establishes the film's visual identity. Compose it as the reference every subsequent frame will answer.`,
+      ``,
+    )
+  }
+
+  lines.push(
+    `EXIT COMPOSITION (handing off to next shot — ${orchestration.exitMomentum.transitionType}):`,
+    TRANSITION_COMPOSITION[orchestration.exitMomentum.transitionType],
+    ``,
+  )
+
+  if (orchestration.directorNote) {
+    lines.push(
+      `DIRECTOR NOTE FOR THIS FRAME: ${orchestration.directorNote}`,
+      ``,
+    )
+  }
+
+  return lines.join("\n")
+}
+
+/**
+ * Derives the correct image aspect ratio from orchestration.
+ * Pull-back / reveal / scale shots need landscape breathing room.
+ * All other narrative shots default to portrait (cinematic 2:3).
+ */
+export function orchestrationToImageSize(
+  orchestration: SceneOrchestration | undefined,
+  shotDescription: string,
+): "1024x1536" | "1536x1024" {
+  if (orchestration) {
+    // Pull-back and scale shots need width to breathe
+    if (
+      orchestration.cameraDirection === "pull-back" ||
+      orchestration.emotionalBeat === "scale" ||
+      orchestration.emotionalBeat === "revelation"
+    ) {
+      return "1536x1024"
+    }
+    // Everything else: portrait — character-first cinematic language
+    return "1024x1536"
+  }
+
+  // Fallback: keyword heuristic (legacy path, no orchestration supplied)
+  const lower = shotDescription.toLowerCase()
+  const landscapeHints = [
+    "wide shot", "wide establish", "establishing shot", "landscape",
+    "panoramic", "horizon", "valley wide", "cityscape",
+    "pull back", "pull-back", "full city",
+  ]
+  return landscapeHints.some((h) => lower.includes(h)) ? "1536x1024" : "1024x1536"
+}
+
 export function buildWorldBiblePrompt(parts: {
   shotDescription: string
   worldBibleContext?: string
   shotNumber?: number
   totalShots?: number
+  orchestration?: SceneOrchestration
 }): string {
-  const { shotDescription, worldBibleContext, shotNumber, totalShots } = parts
+  const { shotDescription, worldBibleContext, shotNumber, totalShots, orchestration } = parts
+
+  const framingBrief = orchestration
+    ? buildOrchestrationFramingBrief(orchestration)
+    : null
 
   return [
     `You are generating a cinematic keyframe for a Trust Tai film. This is CANON — governed by the World Bible v1.0. The following sections are your binding creative constraints. Do not summarise or paraphrase them — obey them.`,
@@ -234,6 +353,8 @@ export function buildWorldBiblePrompt(parts: {
     `=== SCENE APPROVAL TEST ===`,
     SCENE_APPROVAL_TEST,
     ``,
+    framingBrief ?? "",
+    framingBrief ? "" : "",
     `=== FRAME BRIEF ===`,
     `Frame position: shot ${shotNumber ?? "unknown"} of ${totalShots ?? "unknown"}.`,
     `Create one cinematic keyframe image for this exact moment.`,
@@ -254,7 +375,7 @@ export function buildWorldBiblePrompt(parts: {
     `- Apply restraint: prefer texture and material truth over magical spectacle`,
     `- This frame must pass the Scene Approval Test above before it leaves the model`,
     `- Make the frame feel production-ready for a premium cinematic social film`,
-  ].join("\n")
+  ].filter(Boolean).join("\n")
 }
 
 // ---------------------------------------------------------------------------

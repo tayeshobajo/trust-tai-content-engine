@@ -1,31 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import OpenAI from "openai"
 import { createClient } from "@supabase/supabase-js"
-import { buildWorldBiblePrompt } from "@/lib/world-bible"
+import {
+  buildWorldBiblePrompt,
+  orchestrationToImageSize,
+  type SceneOrchestration,
+} from "@/lib/world-bible"
 
 const openai = new OpenAI()
-
-function chooseSize(shotDescription: string): "1024x1536" | "1536x1024" {
-  const lower = shotDescription.toLowerCase()
-  // Only force landscape for explicit wide/establishing shots.
-  // "city" alone is not a landscape trigger — most narrative shots are
-  // character-focused and read better at 2:3 portrait.
-  const landscapeHints = [
-    "wide shot",
-    "wide establish",
-    "establishing shot",
-    "landscape",
-    "panoramic",
-    "horizon",
-    "valley wide",
-    "cityscape",
-    "pull back",
-    "pull-back",
-    "full city",
-  ]
-
-  return landscapeHints.some((hint) => lower.includes(hint)) ? "1536x1024" : "1024x1536"
-}
 
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -42,12 +24,14 @@ export async function POST(req: NextRequest) {
       shotNumber,
       totalShots,
       productionId,
+      orchestration,
     } = (await req.json()) as {
       shotDescription?: string
       worldBibleContext?: string
       shotNumber?: number
       totalShots?: number
       productionId?: string
+      orchestration?: SceneOrchestration
     }
 
     if (!shotDescription?.trim()) {
@@ -59,9 +43,12 @@ export async function POST(req: NextRequest) {
       worldBibleContext,
       shotNumber,
       totalShots,
+      orchestration,
     })
 
-    const size = chooseSize(shotDescription)
+    // Size is now derived from orchestration when available; falls back to keyword heuristic
+    const size = orchestrationToImageSize(orchestration, shotDescription)
+
     const result = await openai.images.generate({
       model: "gpt-image-1",
       prompt,

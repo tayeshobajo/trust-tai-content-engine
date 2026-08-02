@@ -70,6 +70,7 @@ function RenderWorkspace() {
           shotNumber: shot.no,
           totalShots: production.film.shots.length,
           productionId: production.id,
+          orchestration: shot.orchestration ?? CANON_SCENE_003_ORCHESTRATION[shot.no],
         }),
       })
 
