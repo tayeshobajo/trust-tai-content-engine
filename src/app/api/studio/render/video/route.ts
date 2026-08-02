@@ -1,7 +1,7 @@
 import { fal } from "@fal-ai/client"
 import { NextRequest, NextResponse } from "next/server"
 
-const FAL_VIDEO_MODEL = "fal-ai/kling-video/v1.6-master/image-to-video"
+const FAL_VIDEO_MODEL = "fal-ai/kling-video/v2.5-turbo/pro/image-to-video"
 const DEFAULT_DURATION_SEC = 5
 
 interface VideoRenderRequest {
@@ -12,6 +12,10 @@ interface VideoRenderRequest {
 
 interface FalVideoResult {
   data?: {
+    video?: {
+      url?: string
+    }
+    // Some models return video_url directly
     video_url?: string
   }
   requestId?: string
@@ -69,11 +73,11 @@ export async function POST(req: NextRequest) {
           image_url: normalizedImageUrl,
           prompt: normalizedMotionPrompt,
           duration: String(normalizedDurationSec),
-          aspect_ratio: "9:16",
         },
       })) as FalVideoResult
 
-      const videoUrl = result.data?.video_url
+      // Handle both response shapes: { video: { url } } and { video_url }
+      const videoUrl = result.data?.video?.url ?? result.data?.video_url
 
       if (!videoUrl) {
         return createQueuedResponse(
@@ -90,30 +94,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ videoUrl })
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown Fal.ai error"
-      const lowered = message.toLowerCase()
-      const isDataUrl = normalizedImageUrl.startsWith("data:")
-      const dataUrlRejected =
-        isDataUrl &&
-        (lowered.includes("data:") ||
-          lowered.includes("image_url") ||
-          lowered.includes("invalid url") ||
-          lowered.includes("publicly accessible") ||
-          lowered.includes("download"))
-
-      if (dataUrlRejected) {
-        return NextResponse.json(
-          {
-            error: "Fal.ai rejected the data URL image. Upload the image to Supabase Storage first and pass a public URL.",
-            detail: message,
-          },
-          { status: 422 },
-        )
-      }
-
       console.error("[studio/render/video] fal", error)
 
       return createQueuedResponse(
-        "Fal.ai render was queued or could not complete synchronously. Check provider logs or retry with a hosted image URL.",
+        "Fal.ai render was queued or could not complete synchronously. Check provider logs or retry.",
         {
           imageUrl: normalizedImageUrl,
           motionPrompt: normalizedMotionPrompt,
