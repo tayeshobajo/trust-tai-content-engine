@@ -65,6 +65,7 @@ function RenderWorkspace() {
           worldBibleContext: WORLD_BIBLE_CONTEXT,
           shotNumber: shot.no,
           totalShots: production.film.shots.length,
+          productionId: production.id,
         }),
       })
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import OpenAI from "openai"
+import { createClient } from "@supabase/supabase-js"
 
 const openai = new OpenAI()
 
@@ -20,13 +21,27 @@ function chooseSize(shotDescription: string): "1024x1536" | "1536x1024" {
   return landscapeHints.some((hint) => lower.includes(hint)) ? "1536x1024" : "1024x1536"
 }
 
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) throw new Error("Missing Supabase env vars for server-side upload")
+  return createClient(url, key, { auth: { persistSession: false } })
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { shotDescription, worldBibleContext, shotNumber, totalShots } = (await req.json()) as {
+    const {
+      shotDescription,
+      worldBibleContext,
+      shotNumber,
+      totalShots,
+      productionId,
+    } = (await req.json()) as {
       shotDescription?: string
       worldBibleContext?: string
       shotNumber?: number
       totalShots?: number
+      productionId?: string
     }
 
     if (!shotDescription?.trim()) {
@@ -66,10 +81,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Image generation returned no image data" }, { status: 502 })
     }
 
+    // Convert base64 to buffer
+    const buffer = Buffer.from(b64, "base64")
+
+    // Upload to Supabase Storage — public bucket, no auth needed for reads
+    const supabase = getSupabaseAdmin()
+    const fileName = `${productionId ?? "production"}/shot-${shotNumber ?? "x"}-${Date.now()}.png`
+    const { error: uploadError } = await supabase.storage
+      .from("rendered-frames")
+      .upload(fileName, buffer, {
+        contentType: "image/png",
+        cacheControl: "3600",
+        upsert: true,
+      })
+
+    if (uploadError) {
+      console.error("[studio/render/image] storage upload failed:", uploadError)
+      // Fallback to data URL if storage fails — still works, just larger for localStorage
+      return NextResponse.json({
+        imageUrl: `data:image/png;base64,${b64}`,
+        revisedPrompt: result.data?.[0]?.revised_prompt ?? prompt,
+        size,
+      })
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("rendered-frames")
+      .getPublicUrl(fileName)
+
+    const publicUrl = publicUrlData.publicUrl
+
     return NextResponse.json({
-      imageUrl: `data:image/png;base64,${b64}`,
+      imageUrl: publicUrl,
       revisedPrompt: result.data?.[0]?.revised_prompt ?? prompt,
       size,
+      storagePath: fileName,
     })
   } catch (error) {
     console.error("[studio/render/image]", error)
