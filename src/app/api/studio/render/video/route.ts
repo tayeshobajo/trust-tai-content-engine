@@ -1,24 +1,29 @@
-import { fal } from "@fal-ai/client"
 import { NextRequest, NextResponse } from "next/server"
+import { buildWorldBibleMotionPrompt } from "@/lib/world-bible"
 
 const FAL_VIDEO_MODEL = "fal-ai/kling-video/v2.5-turbo/pro/image-to-video"
+const FAL_QUEUE_URL = `https://queue.fal.run/${FAL_VIDEO_MODEL}`
 const DEFAULT_DURATION_SEC = 5
+const MAX_POLL_ATTEMPTS = 48
+const POLL_INTERVAL_MS = 5000
+
+export const maxDuration = 300
 
 interface VideoRenderRequest {
   imageUrl?: string
   motionPrompt?: string
   durationSec?: number
+  shotDescription?: string
 }
 
-interface FalVideoResult {
-  data?: {
-    video?: {
-      url?: string
-    }
-    // Some models return video_url directly
-    video_url?: string
-  }
-  requestId?: string
+interface FalQueueResponse {
+  status?: string
+  request_id?: string
+  response_url?: string
+  status_url?: string
+  cancel_url?: string
+  logs?: unknown
+  metrics?: unknown
 }
 
 function createQueuedResponse(
@@ -35,9 +40,129 @@ function createQueuedResponse(
   })
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function normalizeDurationSec(durationSec: unknown): 5 | 10 {
+  if (typeof durationSec !== "number" || !Number.isFinite(durationSec) || durationSec <= 0) {
+    return DEFAULT_DURATION_SEC
+  }
+
+  return durationSec >= 8 ? 10 : 5
+}
+
+async function parseFalResponse(response: Response): Promise<unknown> {
+  const text = await response.text()
+
+  if (!response.ok) {
+    throw new Error(text || `Fal.ai request failed with ${response.status}`)
+  }
+
+  if (!text) return {}
+
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return { raw: text }
+  }
+}
+
+function extractVideoUrl(payload: unknown): string | null {
+  const root =
+    isRecord(payload) && isRecord(payload.data)
+      ? payload.data
+      : payload
+
+  if (!isRecord(root)) return null
+
+  const video = root.video
+  if (isRecord(video) && typeof video.url === "string") return video.url
+  if (typeof root.video_url === "string") return root.video_url
+
+  return null
+}
+
+async function falRequest(url: string, init?: RequestInit): Promise<unknown> {
+  return parseFalResponse(
+    await fetch(url, {
+      ...init,
+      headers: {
+        Authorization: `Key ${process.env.FAL_KEY}`,
+        ...(init?.body ? { "Content-Type": "application/json" } : {}),
+        ...init?.headers,
+      },
+    })
+  )
+}
+
+async function submitVideo(input: {
+  imageUrl: string
+  motionPrompt: string
+  shotDescription: string
+  durationSec: number
+}): Promise<FalQueueResponse> {
+  const prompt = buildWorldBibleMotionPrompt({
+    shotDescription: input.shotDescription,
+    motionPrompt: input.motionPrompt,
+  })
+
+  const payload = await falRequest(FAL_QUEUE_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      image_url: input.imageUrl,
+      prompt,
+      duration: String(input.durationSec),
+    }),
+  })
+
+  if (!isRecord(payload)) {
+    throw new Error("Fal.ai returned an unreadable queue response")
+  }
+
+  return payload as FalQueueResponse
+}
+
+async function waitForVideo(queue: FalQueueResponse): Promise<{
+  videoUrl?: string
+  queue: FalQueueResponse
+  result?: unknown
+}> {
+  if (!queue.status_url || !queue.response_url) {
+    throw new Error("Fal.ai did not return status/result URLs")
+  }
+
+  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
+    const statusPayload = await falRequest(queue.status_url)
+    const status = isRecord(statusPayload) && typeof statusPayload.status === "string"
+      ? statusPayload.status
+      : queue.status
+
+    if (status === "COMPLETED") {
+      const result = await falRequest(queue.response_url)
+      const videoUrl = extractVideoUrl(result)
+      return { videoUrl: videoUrl ?? undefined, queue, result }
+    }
+
+    if (status === "FAILED" || status === "CANCELLED") {
+      throw new Error(`Fal.ai render ${status.toLowerCase()}`)
+    }
+
+    if (attempt < MAX_POLL_ATTEMPTS - 1) {
+      await sleep(POLL_INTERVAL_MS)
+    }
+  }
+
+  return { queue }
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { imageUrl, motionPrompt, durationSec } = (await req.json()) as VideoRenderRequest
+    const { imageUrl, motionPrompt, durationSec, shotDescription } = (await req.json()) as VideoRenderRequest
 
     if (!imageUrl?.trim()) {
       return NextResponse.json({ error: "Missing imageUrl" }, { status: 400 })
@@ -49,10 +174,8 @@ export async function POST(req: NextRequest) {
 
     const normalizedImageUrl = imageUrl.trim()
     const normalizedMotionPrompt = motionPrompt.trim()
-    const normalizedDurationSec =
-      typeof durationSec === "number" && Number.isFinite(durationSec) && durationSec > 0
-        ? durationSec
-        : DEFAULT_DURATION_SEC
+    const normalizedDurationSec = normalizeDurationSec(durationSec)
+    const normalizedShotDescription = shotDescription?.trim() || normalizedMotionPrompt
 
     if (!process.env.FAL_KEY?.trim()) {
       return createQueuedResponse(
@@ -65,33 +188,35 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    fal.config({ credentials: process.env.FAL_KEY })
-
     try {
-      const result = (await fal.subscribe(FAL_VIDEO_MODEL, {
-        input: {
-          image_url: normalizedImageUrl,
-          prompt: normalizedMotionPrompt,
-          duration: String(normalizedDurationSec),
-        },
-      })) as FalVideoResult
+      const queue = await submitVideo({
+        imageUrl: normalizedImageUrl,
+        motionPrompt: normalizedMotionPrompt,
+        shotDescription: normalizedShotDescription,
+        durationSec: normalizedDurationSec,
+      })
+      const result = await waitForVideo(queue)
 
-      // Handle both response shapes: { video: { url } } and { video_url }
-      const videoUrl = result.data?.video?.url ?? result.data?.video_url
-
-      if (!videoUrl) {
+      if (!result.videoUrl) {
         return createQueuedResponse(
-          "Fal.ai accepted the render but did not return a video URL yet.",
+          "Fal.ai accepted the render but did not return a video URL before the route timeout.",
           {
             imageUrl: normalizedImageUrl,
             motionPrompt: normalizedMotionPrompt,
             durationSec: normalizedDurationSec,
           },
-          { requestId: result.requestId ?? null },
+          {
+            requestId: queue.request_id ?? null,
+            statusUrl: queue.status_url ?? null,
+            responseUrl: queue.response_url ?? null,
+          },
         )
       }
 
-      return NextResponse.json({ videoUrl })
+      return NextResponse.json({
+        videoUrl: result.videoUrl,
+        requestId: queue.request_id ?? null,
+      })
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown Fal.ai error"
       console.error("[studio/render/video] fal", error)

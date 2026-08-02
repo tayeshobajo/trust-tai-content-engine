@@ -256,3 +256,42 @@ export function buildWorldBiblePrompt(parts: {
     `- Make the frame feel production-ready for a premium cinematic social film`,
   ].join("\n")
 }
+
+export function buildWorldBibleMotionPrompt(parts: {
+  shotDescription: string
+  motionPrompt: string
+}): string {
+  return [
+    `Animate this existing Trust Tai keyframe as CANON motion governed by the World Bible v1.0.`,
+    ``,
+    `Do not redesign the image. Preserve character identity, composition, wardrobe, architecture, symbols, and emotional meaning from the source frame.`,
+    ``,
+    `=== SPIRIT FIRST ===`,
+    PHILOSOPHICAL_SPINE,
+    ``,
+    `=== WORLD LAWS IN MOTION ===`,
+    `Use motion only to reveal intention, perspective, dependency, weight, memory, or recognition. Roads, transit lines, light, floating stones, atmosphere, brass mechanisms, and human posture may move. Spectacle for its own sake is failure.`,
+    ``,
+    `=== VISUAL DNA ===`,
+    VISUAL_DNA,
+    ``,
+    `=== ANTI-DRIFT ===`,
+    ANTI_DRIFT,
+    ``,
+    `=== RESTRAINT ===`,
+    RESTRAINT,
+    ``,
+    `SHOT DESCRIPTION:`,
+    parts.shotDescription.trim(),
+    ``,
+    `MOTION DIRECTION:`,
+    parts.motionPrompt.trim(),
+    ``,
+    `MOTION REQUIREMENTS:`,
+    `- Slow cinematic motion only. No whip pans, explosions, jump cuts, glitch effects, or sudden style changes.`,
+    `- Preserve awe with belonging: scale can breathe, but the human being must not become small or decorative.`,
+    `- Let light behave as recognition, not magic. Let roads and mechanisms pulse with legible purpose, not random glow.`,
+    `- Keep the world tactile: stone, brass, dust, haze, glass, cloth, and analog mechanisms remain grounded.`,
+    `- The clip must feel like a restrained premium film shot, not an AI demo.`,
+  ].join("\n")
+}

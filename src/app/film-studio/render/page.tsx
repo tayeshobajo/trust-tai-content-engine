@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Shell from "@/components/Shell"
 import type { Production, Shot } from "@/data/studio"
 import { getProductions, PRODUCTIONS_CHANGED_EVENT, updateProduction } from "@/lib/studio-store"
-import { ArrowLeft, Film, ImageIcon, LoaderCircle, Sparkles } from "lucide-react"
+import { ArrowLeft, Film, ImageIcon, LoaderCircle, Sparkles, Video } from "lucide-react"
 
 const WORLD_BIBLE_CONTEXT = `Production: "The Man Who Carried a City" — Canon Scene 003.
 
@@ -42,6 +42,10 @@ function RenderWorkspace() {
   const allFramesGenerated =
     production?.film.shots.length
       ? production.film.shots.every((shot) => Boolean(shot.renderedImageUrl))
+      : false
+  const allMotionGenerated =
+    production?.film.shots.length
+      ? production.film.shots.every((shot) => Boolean(shot.renderedVideoUrl))
       : false
 
   async function generateFrame(shot: Shot) {
@@ -118,6 +122,8 @@ function RenderWorkspace() {
   }
 
   async function generateMotion(shot: Shot) {
+    if (!shot.renderedImageUrl) return
+
     setShotState((current) => ({
       ...current,
       [shot.no]: { ...current[shot.no], loading: true, error: undefined, videoMessage: undefined },
@@ -130,12 +136,23 @@ function RenderWorkspace() {
         body: JSON.stringify({
           imageUrl: shot.renderedImageUrl,
           motionPrompt: `Add slow cinematic motion to shot ${shot.no}: ${shot.description}`,
+          shotDescription: shot.description,
           durationSec: shot.durationSec,
         }),
       })
 
-      const payload = (await response.json()) as { message?: string; fallback?: { note?: string } }
-      const videoMessage = payload.message || payload.fallback?.note || "Motion is not configured yet."
+      const payload = (await response.json()) as {
+        error?: string
+        videoUrl?: string
+        status?: string
+        note?: string
+        detail?: string
+        requestId?: string | null
+      }
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Motion request failed")
+      }
 
       startTransition(() => {
         if (!production) return
@@ -145,12 +162,29 @@ function RenderWorkspace() {
             ...current.film,
             shots: current.film.shots.map((candidate) =>
               candidate.no === shot.no
-                ? { ...candidate, motionStatus: "blocked" }
+                ? {
+                    ...candidate,
+                    renderedVideoUrl: payload.videoUrl ?? candidate.renderedVideoUrl,
+                    motionStatus: payload.videoUrl ? "rendered" : "queued",
+                  }
                 : candidate
             ),
           },
+          revisions: payload.videoUrl
+            ? [
+                {
+                  at: new Date().toISOString(),
+                  note: `Rendered motion clip for shot ${shot.no}.`,
+                },
+                ...current.revisions,
+              ]
+            : current.revisions,
         }))
       })
+
+      const videoMessage = payload.videoUrl
+        ? "Motion clip rendered."
+        : payload.note || payload.detail || `Motion queued${payload.requestId ? ` (${payload.requestId})` : ""}.`
 
       setShotState((current) => ({
         ...current,
@@ -174,6 +208,20 @@ function RenderWorkspace() {
     try {
       for (const shot of production.film.shots) {
         await generateFrame(shot)
+      }
+    } finally {
+      setFullRenderRunning(false)
+    }
+  }
+
+  async function renderFullMotion() {
+    if (!production) return
+    setFullRenderRunning(true)
+    try {
+      for (const shot of production.film.shots) {
+        if (shot.renderedImageUrl && !shot.renderedVideoUrl) {
+          await generateMotion(shot)
+        }
       }
     } finally {
       setFullRenderRunning(false)
@@ -214,6 +262,14 @@ function RenderWorkspace() {
                   {fullRenderRunning ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                   Render full film
                 </button>
+                <button
+                  onClick={renderFullMotion}
+                  disabled={fullRenderRunning || !allFramesGenerated || allMotionGenerated}
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {fullRenderRunning ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
+                  Render all motion
+                </button>
               </div>
             )}
           </div>
@@ -232,7 +288,7 @@ function RenderWorkspace() {
 
           {production && (
             <>
-              <div className="mb-6 grid gap-4 md:grid-cols-3">
+              <div className="mb-6 grid gap-4 md:grid-cols-4">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Shots</p>
                   <p className="mt-2 text-3xl font-semibold">{production.film.shots.length}</p>
@@ -241,6 +297,12 @@ function RenderWorkspace() {
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Frames ready</p>
                   <p className="mt-2 text-3xl font-semibold">
                     {production.film.shots.filter((shot) => shot.renderedImageUrl).length}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Motion clips</p>
+                  <p className="mt-2 text-3xl font-semibold">
+                    {production.film.shots.filter((shot) => shot.renderedVideoUrl).length}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -320,7 +382,14 @@ function RenderWorkspace() {
 
                         <div>
                           <div className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-white/10 bg-black/30">
-                            {shot.renderedImageUrl ? (
+                            {shot.renderedVideoUrl ? (
+                              <video
+                                src={shot.renderedVideoUrl}
+                                controls
+                                playsInline
+                                className="h-full w-full object-cover"
+                              />
+                            ) : shot.renderedImageUrl ? (
                               <Image
                                 src={shot.renderedImageUrl}
                                 alt={`Rendered frame for shot ${shot.no}`}
@@ -377,6 +446,9 @@ function RenderWorkspace() {
                         )}
                       </div>
                       <p className="text-xs text-slate-400">Shot {shot.no}</p>
+                      {shot.renderedVideoUrl && (
+                        <p className="text-xs font-medium text-[#F0D7AD]">Motion ready</p>
+                      )}
                     </div>
                   ))}
                 </div>
