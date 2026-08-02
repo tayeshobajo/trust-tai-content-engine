@@ -6,7 +6,26 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Shell from "@/components/Shell"
 import type { Production, Shot } from "@/data/studio"
 import { getProductions, PRODUCTIONS_CHANGED_EVENT, updateProduction } from "@/lib/studio-store"
-import { ArrowLeft, ChevronDown, ChevronUp, Clapperboard, Film, ImageIcon, LoaderCircle, Music2, Sparkles, Video } from "lucide-react"
+import {
+  ArrowLeft,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Clapperboard,
+  Eye,
+  Film,
+  ImageIcon,
+  Link2,
+  LoaderCircle,
+  Lock,
+  Music2,
+  Sparkles,
+  Unlock,
+  Users,
+  Video,
+  XCircle,
+  AlertCircle,
+} from "lucide-react"
 import {
   CANON_SCENE_003_ORCHESTRATION,
   type SceneOrchestration,
@@ -20,7 +39,143 @@ Active symbols this production: case/container (city as responsibility made visi
 
 Active world laws: Law 1 (inner realities acquire physical form), Law 3 (every person carries a world), Law 5 (weight contains information).`
 
-type ShotState = Record<number, { loading?: boolean; error?: string; videoMessage?: string; conductorOpen?: boolean }>
+type ShotState = Record<number, {
+  loading?: boolean
+  error?: string
+  videoMessage?: string
+  conductorOpen?: boolean
+  coherenceChecking?: boolean
+}>
+
+// ─── Character Reference Manager ───
+
+function CharacterRefManager({
+  production,
+  onSetRef,
+  onClearRef,
+}: {
+  production: Production
+  onSetRef: (name: string, url: string) => void
+  onClearRef: (name: string) => void
+}) {
+  const [showPanel, setShowPanel] = useState(false)
+  const refs = production.film.characterRefs ?? {}
+  const renderedShots = production.film.shots.filter((s) => s.renderedImageUrl)
+
+  const presetCharacters = [
+    { name: "man", label: "The Man" },
+    { name: "child", label: "The Child" },
+  ]
+
+  return (
+    <div className="rounded-2xl border border-[#C29A5B]/30 bg-[#C29A5B]/5 p-4">
+      <button
+        onClick={() => setShowPanel(!showPanel)}
+        className="flex w-full items-center justify-between"
+      >
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-[#C29A5B]" />
+          <span className="text-sm font-semibold text-[#F0D7AD]">Character Reference Lock</span>
+          {Object.keys(refs).length > 0 && (
+            <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-[10px] font-semibold text-green-300">
+              {Object.keys(refs).length} locked
+            </span>
+          )}
+        </div>
+        {showPanel ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+      </button>
+
+      {showPanel && (
+        <div className="mt-4 space-y-4">
+          <p className="text-xs leading-relaxed text-slate-300">
+            Lock character reference frames after keyframe approval. Every subsequent render will pass these
+            as reference images to <code className="text-[#F0D7AD]">images.edit()</code>, ensuring visual
+            continuity across all shots.
+          </p>
+
+          {presetCharacters.map(({ name, label }) => (
+            <div key={name} className="flex items-center gap-3">
+              <div className="relative h-16 w-12 overflow-hidden rounded-lg border border-white/10 bg-black/30">
+                {refs[name] ? (
+                  <Image src={refs[name]} alt={`${label} reference`} fill unoptimized className="object-cover" />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-[10px] text-slate-500">Not set</div>
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-white">{label}</p>
+                {refs[name] ? (
+                  <button
+                    onClick={() => onClearRef(name)}
+                    className="mt-1 inline-flex items-center gap-1 text-[11px] text-red-300 hover:text-red-200"
+                  >
+                    <Unlock className="h-3 w-3" /> Unlock
+                  </button>
+                ) : (
+                  <select
+                    onChange={(e) => e.target.value && onSetRef(name, e.target.value)}
+                    value=""
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-[11px] text-slate-300"
+                  >
+                    <option value="">Pick from rendered frame...</option>
+                    {renderedShots.map((s) => (
+                      <option key={s.no} value={s.renderedImageUrl}>
+                        Shot {s.no}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Coherence Status Badge ───
+
+function CoherenceBadge({ shot, onClick, checking }: {
+  shot: Shot
+  onClick: () => void
+  checking?: boolean
+}) {
+  if (checking) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
+        <LoaderCircle className="h-3 w-3 animate-spin" /> Checking...
+      </span>
+    )
+  }
+
+  switch (shot.coherenceStatus) {
+    case "pass":
+      return (
+        <button onClick={onClick} className="inline-flex items-center gap-1 text-[11px] text-green-300 hover:text-green-200">
+          <CheckCircle2 className="h-3 w-3" /> Coherence: Pass
+        </button>
+      )
+    case "fail":
+      return (
+        <button onClick={onClick} className="inline-flex items-center gap-1 text-[11px] text-red-300 hover:text-red-200">
+          <XCircle className="h-3 w-3" /> Coherence: FAIL
+        </button>
+      )
+    case "warning":
+      return (
+        <button onClick={onClick} className="inline-flex items-center gap-1 text-[11px] text-amber-300 hover:text-amber-200">
+          <AlertCircle className="h-3 w-3" /> Coherence: Warning
+        </button>
+      )
+    default:
+      return shot.renderedImageUrl ? (
+        <button onClick={onClick} className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-300">
+          <Eye className="h-3 w-3" /> Check coherence
+        </button>
+      ) : null
+  }
+}
 
 function RenderWorkspace() {
   const router = useRouter()
@@ -30,6 +185,8 @@ function RenderWorkspace() {
   const [loaded, setLoaded] = useState(false)
   const [shotState, setShotState] = useState<ShotState>({})
   const [fullRenderRunning, setFullRenderRunning] = useState(false)
+  const [chainMode, setChainMode] = useState(true)
+  const [continuityRenderRunning, setContinuityRenderRunning] = useState(false)
 
   useEffect(() => {
     const load = () => {
@@ -52,7 +209,105 @@ function RenderWorkspace() {
       ? production.film.shots.every((shot) => Boolean(shot.renderedVideoUrl))
       : false
 
-  async function generateFrame(shot: Shot) {
+  const characterRefs = production?.film.characterRefs ?? {}
+  const hasCharacterRefs = Object.keys(characterRefs).length > 0
+
+  function setCharacterRef(name: string, url: string) {
+    if (!production) return
+    startTransition(() => {
+      updateProduction(production.id, (current) => ({
+        ...current,
+        film: {
+          ...current.film,
+          characterRefs: {
+            ...(current.film.characterRefs ?? {}),
+            [name]: url,
+          },
+        },
+      }))
+    })
+  }
+
+  function clearCharacterRef(name: string) {
+    if (!production) return
+    startTransition(() => {
+      updateProduction(production.id, (current) => {
+        const next = { ...(current.film.characterRefs ?? {}) }
+        delete next[name]
+        return {
+          ...current,
+          film: { ...current.film, characterRefs: next },
+        }
+      })
+    })
+  }
+
+  async function runCoherenceCheck(shot: Shot) {
+    if (!shot.renderedImageUrl || !hasCharacterRefs) return
+
+    setShotState((s) => ({
+      ...s,
+      [shot.no]: { ...s[shot.no], coherenceChecking: true },
+    }))
+
+    try {
+      // Check against first available character ref
+      const firstRef = Object.values(characterRefs)[0]
+      const response = await fetch("/api/studio/render/coherence-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          frameUrl: shot.renderedImageUrl,
+          referenceUrl: firstRef,
+          shotNumber: shot.no,
+          shotDescription: shot.description,
+        }),
+      })
+
+      const payload = await response.json()
+
+      startTransition(() => {
+        if (!production) return
+        updateProduction(production.id, (current) => ({
+          ...current,
+          film: {
+            ...current.film,
+            shots: current.film.shots.map((c) =>
+              c.no === shot.no
+                ? {
+                    ...c,
+                    coherenceStatus: payload.status ?? "warning",
+                    coherenceNote: payload.notes ?? payload.error ?? "No notes",
+                  }
+                : c
+            ),
+          },
+        }))
+      })
+    } catch (error) {
+      startTransition(() => {
+        if (!production) return
+        updateProduction(production.id, (current) => ({
+          ...current,
+          film: {
+            ...current.film,
+            shots: current.film.shots.map((c) =>
+              c.no === shot.no
+                ? { ...c, coherenceStatus: "warning", coherenceNote: "Check failed — network error" }
+                : c
+            ),
+          },
+        }))
+      })
+    } finally {
+      setShotState((s) => ({
+        ...s,
+        [shot.no]: { ...s[shot.no], coherenceChecking: false },
+      }))
+    }
+  }
+
+  async function generateFrame(shot: Shot, previousShotUrl?: string) {
     if (!production) return
 
     setShotState((current) => ({
@@ -61,6 +316,8 @@ function RenderWorkspace() {
     }))
 
     try {
+      const refArray = hasCharacterRefs ? Object.values(characterRefs) : undefined
+
       const response = await fetch("/api/studio/render/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -71,6 +328,8 @@ function RenderWorkspace() {
           totalShots: production.film.shots.length,
           productionId: production.id,
           orchestration: shot.orchestration ?? CANON_SCENE_003_ORCHESTRATION[shot.no],
+          referenceImages: refArray,
+          previousShotUrl,
         }),
       })
 
@@ -78,6 +337,7 @@ function RenderWorkspace() {
         error?: string
         imageUrl?: string
         revisedPrompt?: string
+        usedReferenceImages?: boolean
       }
 
       if (!response.ok || !payload.imageUrl) {
@@ -96,6 +356,9 @@ function RenderWorkspace() {
                     renderedImageUrl: payload.imageUrl,
                     renderPrompt: payload.revisedPrompt,
                     motionStatus: "idle",
+                    coherenceStatus: "unchecked",
+                    coherenceNote: undefined,
+                    previousShotUrl,
                   }
                 : candidate
             ),
@@ -103,7 +366,7 @@ function RenderWorkspace() {
           revisions: [
             {
               at: new Date().toISOString(),
-              note: `Rendered frame for shot ${shot.no}.`,
+              note: `Rendered frame for shot ${shot.no}${payload.usedReferenceImages ? " (with character refs)" : ""}.`,
             },
             ...current.revisions,
           ],
@@ -114,6 +377,12 @@ function RenderWorkspace() {
         ...current,
         [shot.no]: { ...current[shot.no], loading: false, error: undefined },
       }))
+
+      // Auto-run coherence check if we have character refs
+      if (hasCharacterRefs) {
+        // Small delay to let state settle
+        setTimeout(() => runCoherenceCheck({ ...shot, renderedImageUrl: payload.imageUrl }), 500)
+      }
     } catch (error) {
       setShotState((current) => ({
         ...current,
@@ -123,6 +392,35 @@ function RenderWorkspace() {
           error: error instanceof Error ? error.message : "Frame generation failed",
         },
       }))
+    }
+  }
+
+  /**
+   * Sequential render with character continuity + shot chaining.
+   * Each shot receives:
+   *   1. All locked character reference images
+   *   2. The previous shot's rendered output (if chain mode is on)
+   */
+  async function renderWithContinuity() {
+    if (!production) return
+    setContinuityRenderRunning(true)
+
+    try {
+      const shots = production.film.shots
+      let prevUrl: string | undefined
+
+      for (const shot of shots) {
+        await generateFrame(shot, chainMode ? prevUrl : undefined)
+
+        // Read the updated production to get the newly rendered URL for chaining
+        const updated = getProductions().find((p) => p.id === production.id)
+        const rendered = updated?.film.shots.find((s) => s.no === shot.no)
+        if (rendered?.renderedImageUrl) {
+          prevUrl = rendered.renderedImageUrl
+        }
+      }
+    } finally {
+      setContinuityRenderRunning(false)
     }
   }
 
@@ -137,7 +435,6 @@ function RenderWorkspace() {
     }))
 
     try {
-      // Pull orchestration from the shot (if Tai has customised it) or fall back to canonical plan
       const orchestration: SceneOrchestration | undefined =
         shot.orchestration ?? CANON_SCENE_003_ORCHESTRATION[shot.no]
 
@@ -270,16 +567,24 @@ function RenderWorkspace() {
             {production && (
               <div className="flex flex-wrap gap-3">
                 <button
-                  onClick={renderFullFilm}
-                  disabled={fullRenderRunning}
+                  onClick={renderWithContinuity}
+                  disabled={continuityRenderRunning || fullRenderRunning}
                   className="inline-flex items-center gap-2 rounded-lg bg-[#C29A5B] px-4 py-2.5 text-sm font-semibold text-[#0F172A] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {continuityRenderRunning ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+                  Render with Continuity
+                </button>
+                <button
+                  onClick={renderFullFilm}
+                  disabled={fullRenderRunning || continuityRenderRunning}
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {fullRenderRunning ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                   Render full film
                 </button>
                 <button
                   onClick={renderFullMotion}
-                  disabled={fullRenderRunning || !allFramesGenerated || allMotionGenerated}
+                  disabled={fullRenderRunning || continuityRenderRunning || !allFramesGenerated || allMotionGenerated}
                   className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {fullRenderRunning ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
@@ -303,7 +608,8 @@ function RenderWorkspace() {
 
           {production && (
             <>
-              <div className="mb-6 grid gap-4 md:grid-cols-4">
+              {/* Stats Bar */}
+              <div className="mb-6 grid gap-4 md:grid-cols-5">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Shots</p>
                   <p className="mt-2 text-3xl font-semibold">{production.film.shots.length}</p>
@@ -321,9 +627,44 @@ function RenderWorkspace() {
                   </p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Character refs</p>
+                  <p className="mt-2 text-3xl font-semibold">
+                    {Object.keys(characterRefs).length}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Keyframes gate</p>
                   <p className="mt-2 text-lg font-semibold text-[#C29A5B]">
                     {production.gates.keyframes.status === "approved" ? "Approved" : "Not approved"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Continuity Controls */}
+              <div className="mb-6 space-y-3">
+                <CharacterRefManager
+                  production={production}
+                  onSetRef={setCharacterRef}
+                  onClearRef={clearCharacterRef}
+                />
+
+                {/* Chain Mode Toggle */}
+                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+                  <button
+                    onClick={() => setChainMode(!chainMode)}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      chainMode
+                        ? "bg-[#C29A5B]/20 text-[#F0D7AD]"
+                        : "bg-white/5 text-slate-400"
+                    }`}
+                  >
+                    {chainMode ? <Link2 className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                    Shot Chaining: {chainMode ? "ON" : "OFF"}
+                  </button>
+                  <p className="text-xs text-slate-400">
+                    {chainMode
+                      ? "Each shot receives the previous shot's output as an additional reference, creating visual flow."
+                      : "Shots render independently with only character reference images."}
                   </p>
                 </div>
               </div>
@@ -350,6 +691,11 @@ function RenderWorkspace() {
                             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
                               {shot.durationSec}s
                             </span>
+                            {shot.previousShotUrl && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-[#C29A5B]/30 bg-[#C29A5B]/5 px-2 py-1 text-[10px] text-[#F0D7AD]">
+                                <Link2 className="h-2.5 w-2.5" /> Chained
+                              </span>
+                            )}
                           </div>
 
                           <h2 className="text-xl font-semibold text-white">{shot.description}</h2>
@@ -357,10 +703,30 @@ function RenderWorkspace() {
                             {shot.purpose}
                           </p>
 
+                          {/* Coherence Status */}
+                          {shot.renderedImageUrl && (
+                            <div className="mt-3">
+                              <CoherenceBadge
+                                shot={shot}
+                                checking={state?.coherenceChecking}
+                                onClick={() => runCoherenceCheck(shot)}
+                              />
+                              {shot.coherenceNote && shot.coherenceStatus !== "unchecked" && (
+                                <p className={`mt-1 text-xs ${
+                                  shot.coherenceStatus === "pass" ? "text-green-300/70" :
+                                  shot.coherenceStatus === "fail" ? "text-red-300/70" :
+                                  "text-amber-300/70"
+                                }`}>
+                                  {shot.coherenceNote}
+                                </p>
+                              )}
+                            </div>
+                          )}
+
                           <div className="mt-5 flex flex-wrap gap-3">
                             <button
                               onClick={() => generateFrame(shot)}
-                              disabled={Boolean(state?.loading) || fullRenderRunning}
+                              disabled={Boolean(state?.loading) || fullRenderRunning || continuityRenderRunning}
                               className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-[#0F172A] transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               {state?.loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
@@ -376,7 +742,6 @@ function RenderWorkspace() {
                               Generate motion
                             </button>
 
-                            {/* Conductor toggle */}
                             <button
                               onClick={() =>
                                 setShotState((current) => ({
@@ -407,7 +772,6 @@ function RenderWorkspace() {
                             <p className="mt-3 text-sm text-[#F0D7AD]">{state.videoMessage}</p>
                           )}
 
-                          {/* Scene Conductor Panel */}
                           {state?.conductorOpen && (() => {
                             const plan: SceneOrchestration | undefined =
                               shot.orchestration ?? CANON_SCENE_003_ORCHESTRATION[shot.no]
@@ -532,7 +896,11 @@ function RenderWorkspace() {
                           </div>
                         )}
                       </div>
-                      <p className="text-xs text-slate-400">Shot {shot.no}</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-slate-400">Shot {shot.no}</p>
+                        {shot.coherenceStatus === "pass" && <CheckCircle2 className="h-3 w-3 text-green-400" />}
+                        {shot.coherenceStatus === "fail" && <XCircle className="h-3 w-3 text-red-400" />}
+                      </div>
                       {shot.renderedVideoUrl && (
                         <p className="text-xs font-medium text-[#F0D7AD]">Motion ready</p>
                       )}

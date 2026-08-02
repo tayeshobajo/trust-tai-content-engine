@@ -129,6 +129,11 @@ export interface Shot {
   motionStatus?: "idle" | "queued" | "blocked" | "rendered"
   /** Scene Conductor orchestration data — governs how this shot moves in relation to adjacent shots. */
   orchestration?: import("@/lib/world-bible").SceneOrchestration
+  /** URL of the previous shot's rendered frame — used for visual chaining in sequential render. */
+  previousShotUrl?: string
+  /** Coherence check result for this shot's frame. */
+  coherenceStatus?: "unchecked" | "pass" | "fail" | "warning"
+  coherenceNote?: string
 }
 
 export interface KeyframePlan {
@@ -156,6 +161,8 @@ export interface FilmPlan {
   keyframes: KeyframePlan
   modelRoute: ModelRouteStep[]
   continuity: ContinuityItem[]
+  /** Character reference images — locked after keyframe approval. Key = character name, value = image URL. */
+  characterRefs?: Record<string, string>
 }
 
 export type LibraryStatus = "in_production" | "ready" | "published" | "archived"
