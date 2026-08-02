@@ -1,7 +1,7 @@
 import { fal } from "@fal-ai/client"
 import { NextRequest, NextResponse } from "next/server"
 
-const FAL_VIDEO_MODEL = "kwen-video-generation/kling-v2-master"
+const FAL_VIDEO_MODEL = "fal-ai/kling-video/v1.6-master/image-to-video"
 const DEFAULT_DURATION_SEC = 5
 
 interface VideoRenderRequest {
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
         input: {
           image_url: normalizedImageUrl,
           prompt: normalizedMotionPrompt,
-          duration: normalizedDurationSec,
+          duration: String(normalizedDurationSec),
           aspect_ratio: "9:16",
         },
       })) as FalVideoResult
