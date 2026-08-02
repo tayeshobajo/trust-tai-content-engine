@@ -8,17 +8,13 @@ import type { Production, Shot } from "@/data/studio"
 import { getProductions, PRODUCTIONS_CHANGED_EVENT, updateProduction } from "@/lib/studio-store"
 import { ArrowLeft, Film, ImageIcon, LoaderCircle, Sparkles } from "lucide-react"
 
-const WORLD_BIBLE_CONTEXT = `This is a Trust Tai World Bible production. Govern every frame by these truths:
-- Awe with belonging, not spectacle
-- Inner realities can acquire physical form
-- The world is lived-in, beautiful, and emotionally truthful
-- The audience should feel recognition, curiosity, awe, belonging, and agency
-- Characters are seen before they are evaluated
-- The protagonist remains dignified, intelligent, tender, and fully human
-- Light is recognition, not holiness
-- Height is perspective, not superiority
-- Symbols in play: case/container, living roads, light, map, city as responsibility made visible
-- Final soul check: Is the human being seen first? Is dignity intact? Does the image tell the truth without making them small?`
+const WORLD_BIBLE_CONTEXT = `Production: "The Man Who Carried a City" — Canon Scene 003.
+
+World context: A civilization where the weight of responsibility, memory, and unseen systems takes physical form. Two architects build bridges in the same city — one anchors every bridge to himself, the other builds bridges that never touch her. The world is retrofuturist: brass instruments, glowing transit lines, carved stone, floating stones, elevated viaducts, market commerce. Black characters are foundational, not applied. Technology is handmade analog — no digital screens.
+
+Active symbols this production: case/container (city as responsibility made visible), living road (intention and dependency made legible), brass (knowledge shaped by hands), light (recognition), height (perspective).
+
+Active world laws: Law 1 (inner realities acquire physical form), Law 3 (every person carries a world), Law 5 (weight contains information).`
 
 type ShotState = Record<number, { loading?: boolean; error?: string; videoMessage?: string }>
 
