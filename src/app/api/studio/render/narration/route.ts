@@ -50,6 +50,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    console.log("[narration] key length:", ELEVENLABS_API_KEY.length, "prefix:", ELEVENLABS_API_KEY.slice(0, 6))
+
     const useVoiceId = voiceId?.trim() || VOICE_ID
     const cleanText = text.trim()
 
