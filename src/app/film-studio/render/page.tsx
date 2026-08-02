@@ -17,7 +17,6 @@ import {
   ImageIcon,
   Link2,
   LoaderCircle,
-  Lock,
   Music2,
   Sparkles,
   Unlock,
@@ -284,7 +283,7 @@ function RenderWorkspace() {
           },
         }))
       })
-    } catch (error) {
+    } catch {
       startTransition(() => {
         if (!production) return
         updateProduction(production.id, (current) => ({
