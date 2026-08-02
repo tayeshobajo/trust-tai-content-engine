@@ -452,61 +452,117 @@ export interface SceneOrchestration {
  * Each shot's motion is choreographed in relation to the shots before and after it.
  * Edit this plan to change the film's cinematic grammar for the full production.
  */
+/**
+ * Canon Scene 003 — "The Man Who Carried a City"
+ *
+ * Director's arc: DROP IN → VALLEY (weight accumulates) → CRACK (reveal) → BOTTOM (dependency) → THE TURN (decisive move) → PROOF → LANDING
+ *
+ * The film does not establish before it drops you in. You are inside the weight
+ * before you understand what it is. The valley is shots 2-6: each beat adds
+ * a new layer of weight. The crack is shot 7 — the reveal. Shot 8 is the bottom:
+ * the system of dependency made visible. Shot 9 is the turn: one small move,
+ * cascading effect. Shot 10 is the proof. Shot 11 is the landing.
+ *
+ * Structure (11 shots, Canon Scene 003 pilot):
+ *   Shot  1 — DROP IN              push-in, weight      — mid-action, no wide establishing, case already heavy
+ *   Shot  2 — VALLEY ENTRY         hold-still, weight   — first thing given, first weight added
+ *   Shot  3 — VALLEY DEEPENS       push-in, weight      — second weight, closer than before
+ *   Shot  4 — VALLEY DEEPENS       descend, weight      — third weight, camera below eye line, pressing down
+ *   Shot  5 — VALLEY FLOOR (inner) hold-still, memory   — the emotional weight, flashback, stillness
+ *   Shot  6 — VALLEY FLOOR (deepest) orbit-slow, intimacy — deepest weight, home, the child, maximum gravity
+ *   Shot  7 — THE CRACK            push-in, revelation  — the reveal, case opens, living city inside
+ *   Shot  8 — THE BOTTOM           hold-still, weight   — roads all lead back to him, maximum dependency
+ *   Shot  9 — THE TURN             rise, recognition    — one move, everything changes, camera lifts
+ *   Shot 10 — PROOF                drift-right, arrival — child lifts the case, weight transferred
+ *   Shot 11 — LANDING              pull-back, arrival   — earned wide, man beside city not under it
+ */
 export const CANON_SCENE_003_ORCHESTRATION: Record<number, SceneOrchestration> = {
   1: {
-    cameraDirection: "pull-back",
-    pace: "glacial",
-    exitMomentum: { direction: "pull-back", pace: "glacial", transitionType: "dissolve" },
-    emotionalBeat: "scale",
-    directorNote: "Open on weight. The city is already there before we see who carries it. Pull back slowly — let the scale unfold like a secret.",
+    cameraDirection: "push-in",
+    pace: "measured",
+    exitMomentum: { direction: "push-in", pace: "measured", transitionType: "hard-cut" },
+    emotionalBeat: "weight",
+    directorNote: "DROP IN. Do not establish the city. Do not show us where we are. Start on the man's body — his stride, the case, the weight in his shoulders. The audience is inside the experience before they understand it. The city is background, not subject. Push toward him. Mid-action. The film has already been happening before we arrived.",
   },
   2: {
-    cameraDirection: "push-in",
-    pace: "slow",
-    incomingMomentum: { direction: "pull-back", pace: "glacial", transitionType: "dissolve" },
-    exitMomentum: { direction: "push-in", pace: "slow", transitionType: "match-cut" },
-    emotionalBeat: "weight",
-    directorNote: "After the wide reveal, move toward the character — answer the pull-back with an approach. We are getting closer to the person, not the spectacle.",
-  },
-  3: {
     cameraDirection: "hold-still",
     pace: "slow",
-    incomingMomentum: { direction: "push-in", pace: "slow", transitionType: "match-cut" },
-    exitMomentum: { direction: "hold-still", pace: "slow", transitionType: "breath" },
-    emotionalBeat: "intimacy",
-    directorNote: "Lock the camera. The character moves; the world waits. This is the only shot where stillness is the statement. Let the push-in from shot 2 land here and settle.",
+    incomingMomentum: { direction: "push-in", pace: "measured", transitionType: "hard-cut" },
+    exitMomentum: { direction: "hold-still", pace: "slow", transitionType: "dissolve" },
+    emotionalBeat: "weight",
+    directorNote: "VALLEY ENTRY. Lock the camera at the moment of exchange. A colleague hands him something — it disappears into the case. The case does not grow. His expression does not change. The weight is invisible. That is the point. The audience registers the transaction without understanding it yet. Hold the frame through the whole exchange.",
+  },
+  3: {
+    cameraDirection: "push-in",
+    pace: "slow",
+    incomingMomentum: { direction: "hold-still", pace: "slow", transitionType: "dissolve" },
+    exitMomentum: { direction: "push-in", pace: "slow", transitionType: "hard-cut" },
+    emotionalBeat: "weight",
+    directorNote: "VALLEY DEEPENS. Push in closer than shot 2. The mechanism disappears into the case. This beat must feel different from shot 2 — not repetition, escalation. We are closer to him now. The world is slightly more confined. The atmosphere is slightly heavier. Push toward the case itself, not his face.",
   },
   4: {
+    cameraDirection: "descend",
+    pace: "slow",
+    incomingMomentum: { direction: "push-in", pace: "slow", transitionType: "hard-cut" },
+    exitMomentum: { direction: "descend", pace: "slow", transitionType: "breath" },
+    emotionalBeat: "weight",
+    directorNote: "VALLEY PRESSING DOWN. Camera descends below eye line. The architecture of the workshop towers above him. The decision enters the case from above — gravity is the metaphor. This is the heaviest of the workplace shots. The audience should feel the cumulative weight in their chest by now. Do not dramatize. The plainness of the descent is the statement.",
+  },
+  5: {
+    cameraDirection: "hold-still",
+    pace: "slow",
+    incomingMomentum: { direction: "descend", pace: "slow", transitionType: "breath" },
+    exitMomentum: { direction: "hold-still", pace: "slow", transitionType: "dissolve" },
+    emotionalBeat: "memory",
+    directorNote: "VALLEY FLOOR — INNER. The breath lands here. Locked frame. A younger version of him in a memory space. He hands the folded dream to the present-day man. This is not nostalgia — it is archaeology. The weight is not just external. Some of it has always been his own. Hold the stillness. Let the memory sit without explanation.",
+  },
+  6: {
+    cameraDirection: "orbit-slow",
+    pace: "slow",
+    incomingMomentum: { direction: "hold-still", pace: "slow", transitionType: "dissolve" },
+    exitMomentum: { direction: "orbit-slow", pace: "slow", transitionType: "match-cut" },
+    emotionalBeat: "intimacy",
+    directorNote: "VALLEY FLOOR — DEEPEST. Home. The child gives him the drawing. It enters the case. Orbit slowly around both of them — the child and the man. The tenderness of this must be absolute. This is the heaviest weight because it is the most loved. The camera encircles them but does not crowd them. The child does not know what they are giving. The man does.",
+  },
+  7: {
+    cameraDirection: "push-in",
+    pace: "slow",
+    incomingMomentum: { direction: "orbit-slow", pace: "slow", transitionType: "match-cut" },
+    exitMomentum: { direction: "push-in", pace: "slow", transitionType: "hard-cut" },
+    emotionalBeat: "revelation",
+    directorNote: "THE CRACK. Night. Silence. Case on the table. He opens it. Push in slowly as the light escapes. The living city is inside — roads that glow, buildings that breathe, machinery that hums. This is a revelation, not a spectacle. Do not rush it. Do not make it miraculous. The city inside is beautiful in the same way the city outside is beautiful — it is the same city. That is the horror and the gift.",
+  },
+  8: {
+    cameraDirection: "hold-still",
+    pace: "slow",
+    incomingMomentum: { direction: "push-in", pace: "slow", transitionType: "hard-cut" },
+    exitMomentum: { direction: "hold-still", pace: "slow", transitionType: "breath" },
+    emotionalBeat: "weight",
+    directorNote: "THE BOTTOM. Locked frame, close. Every road leads back to him. The machinery is waiting. The lights are dim because they are waiting for him. This is the maximum weight of the film — not the carrying, but the seeing. He sees the system. He sees that it was always about him. Hold this. Let the weight of understanding press on the audience. Do not cut away from this discomfort.",
+  },
+  9: {
     cameraDirection: "rise",
     pace: "measured",
     incomingMomentum: { direction: "hold-still", pace: "slow", transitionType: "breath" },
-    exitMomentum: { direction: "rise", pace: "measured", transitionType: "match-cut" },
-    emotionalBeat: "threshold",
-    directorNote: "After the breath, begin to ascend. The rise is earned by the stillness before it. This is the turn — weight becoming something the character begins to understand.",
+    exitMomentum: { direction: "rise", pace: "measured", transitionType: "dissolve" },
+    emotionalBeat: "recognition",
+    directorNote: "THE TURN. He reaches in. One hand. One road. He moves it. The camera begins to rise as the roads reconnect without his touch. Lights come on. He does not touch them. The camera should be ascending through the moment of the move — not dramatically, with intention. The rise is not triumph. It is the moment someone understands they have agency they did not know they had.",
   },
-  5: {
-    cameraDirection: "drift-right",
-    pace: "measured",
-    incomingMomentum: { direction: "rise", pace: "measured", transitionType: "match-cut" },
-    exitMomentum: { direction: "drift-right", pace: "measured", transitionType: "dissolve" },
-    emotionalBeat: "revelation",
-    directorNote: "The rise gives way to a lateral drift — like the eye reading a sentence. The system is being revealed across the frame, not from above.",
-  },
-  6: {
+  10: {
     cameraDirection: "drift-right",
     pace: "slow",
-    incomingMomentum: { direction: "drift-right", pace: "measured", transitionType: "dissolve" },
-    exitMomentum: { direction: "push-in", pace: "slow", transitionType: "match-cut" },
-    emotionalBeat: "memory",
-    directorNote: "Continue the drift from shot 5 but decelerate — like recognition slowing the body. End by finding a push-in target: a face, a detail, a symbol the viewer needs to hold.",
+    incomingMomentum: { direction: "rise", pace: "measured", transitionType: "dissolve" },
+    exitMomentum: { direction: "drift-right", pace: "slow", transitionType: "dissolve" },
+    emotionalBeat: "arrival",
+    directorNote: "PROOF. He closes the case. Sets it on the floor. The child walks in and lifts it without effort. The camera drifts right with the child — gently following the weight as it moves to someone who does not yet know it is heavy. This is not a miracle. It is physics. The case was always this light. He just couldn't feel it.",
   },
-  7: {
+  11: {
     cameraDirection: "pull-back",
     pace: "glacial",
-    incomingMomentum: { direction: "push-in", pace: "slow", transitionType: "match-cut" },
+    incomingMomentum: { direction: "drift-right", pace: "slow", transitionType: "dissolve" },
     exitMomentum: { direction: "pull-back", pace: "glacial", transitionType: "hard-cut" },
     emotionalBeat: "arrival",
-    directorNote: "Mirror shot 1 — but now the pull-back is earned. The city is still vast. But the character has changed. Audience carries that out with them.",
+    directorNote: "LANDING. The child opens the drawing. In it: the man stands beside the city — not underneath it. Pull back slowly from the drawing. The world that felt crushing in shot 1 is now at his side. The same scale. A different relationship. Hold the pull-back until the frame is wide enough for the audience to feel the difference from shot 1. That difference is the whole film.",
   },
 }
 
