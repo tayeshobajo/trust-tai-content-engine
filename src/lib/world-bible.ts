@@ -261,37 +261,21 @@ export function buildWorldBibleMotionPrompt(parts: {
   shotDescription: string
   motionPrompt: string
 }): string {
+  // Fal/Kling has a 2,500 character prompt limit.
+  // Motion governance is condensed to essentials — the image already carries
+  // visual identity. This block governs HOW things move, not what they look like.
   return [
-    `Animate this existing Trust Tai keyframe as CANON motion governed by the World Bible v1.0.`,
+    `Animate this Trust Tai keyframe as CANON motion. Do not redesign the image — preserve character identity, composition, architecture, and symbols.`,
     ``,
-    `Do not redesign the image. Preserve character identity, composition, wardrobe, architecture, symbols, and emotional meaning from the source frame.`,
+    `MOTION PHILOSOPHY: Move only to reveal intention, weight, memory, or recognition. Spectacle for its own sake is failure. Light behaves as recognition, not magic. Stones, atmosphere, and transit lines move with physics-like purpose.`,
     ``,
-    `=== SPIRIT FIRST ===`,
-    PHILOSOPHICAL_SPINE,
+    `REstraint: Remove one-third of the magic. Favor stone, brass, dust, haze, and human scale over spectacle. The extraordinary should feel like physics, not effects.`,
     ``,
-    `=== WORLD LAWS IN MOTION ===`,
-    `Use motion only to reveal intention, perspective, dependency, weight, memory, or recognition. Roads, transit lines, light, floating stones, atmosphere, brass mechanisms, and human posture may move. Spectacle for its own sake is failure.`,
+    `ANTI-DRIFT: No sudden style changes, glitch, explosions, or whip pans. Characters must not become decorative. Black characters retain dignity, interiority, and agency in every frame.`,
     ``,
-    `=== VISUAL DNA ===`,
-    VISUAL_DNA,
+    `SHOT: ${parts.shotDescription.trim()}`,
+    `MOTION: ${parts.motionPrompt.trim()}`,
     ``,
-    `=== ANTI-DRIFT ===`,
-    ANTI_DRIFT,
-    ``,
-    `=== RESTRAINT ===`,
-    RESTRAINT,
-    ``,
-    `SHOT DESCRIPTION:`,
-    parts.shotDescription.trim(),
-    ``,
-    `MOTION DIRECTION:`,
-    parts.motionPrompt.trim(),
-    ``,
-    `MOTION REQUIREMENTS:`,
-    `- Slow cinematic motion only. No whip pans, explosions, jump cuts, glitch effects, or sudden style changes.`,
-    `- Preserve awe with belonging: scale can breathe, but the human being must not become small or decorative.`,
-    `- Let light behave as recognition, not magic. Let roads and mechanisms pulse with legible purpose, not random glow.`,
-    `- Keep the world tactile: stone, brass, dust, haze, glass, cloth, and analog mechanisms remain grounded.`,
-    `- The clip must feel like a restrained premium film shot, not an AI demo.`,
+    `Keep it slow, cinematic, and grounded — a premium film shot, not an AI demo.`,
   ].join("\n")
 }
