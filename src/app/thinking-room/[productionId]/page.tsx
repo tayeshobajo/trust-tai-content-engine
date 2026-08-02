@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import Shell from "@/components/Shell"
@@ -585,6 +586,30 @@ export default function ThinkingRoomWorkspace() {
                   </div>
                 </div>
               </div>
+
+              {production.gates.truth.status === "approved" && (
+                <div
+                  className="mt-6 rounded-sm px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                  style={{ backgroundColor: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.22)" }}
+                >
+                  <div>
+                    <p className="text-[10px] font-bold tracking-[0.14em] uppercase mb-1" style={{ color: "#15803D" }}>
+                      Next gate
+                    </p>
+                    <p className="text-sm font-medium" style={{ color: "#1A2332" }}>
+                      Truth approved. The post needs to carry it.
+                    </p>
+                  </div>
+                  <Link
+                    href={`/approvals/${production.id}`}
+                    className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-sm transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: "#1A2332", color: "#FFFFFF", border: "1px solid #1A2332" }}
+                  >
+                    Continue to Post Review
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </div>

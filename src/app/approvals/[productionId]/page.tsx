@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import Shell from "@/components/Shell"
@@ -347,6 +348,7 @@ export default function ApprovalDeskWorkspace() {
   const gate = nextGate(production)
   const isPostGate = gate === "post"
   const postAlreadyApproved = production.gates.post.status === "approved"
+  const blockingCount = storyScore?.blocking?.length ?? 0
   const wc = wordCount(production.sections)
   const voiceWarnings = checkVoice(assembleArgument(production.sections))
   const voiceWarnCount = voiceWarnings.length
@@ -766,56 +768,91 @@ export default function ApprovalDeskWorkspace() {
 
         {/* ── Sticky Post Gate bar ── */}
         <div
-          className="fixed bottom-0 right-0 border-t px-8 py-4 flex items-center justify-between gap-6 z-20"
+          className="fixed bottom-0 right-0 border-t px-8 py-4 z-20"
           style={{ left: 140, backgroundColor: "#FFFFFF", borderColor: "#DDD8CE" }}
         >
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: "#C29A5B" }} />
-            <div className="min-w-0">
-              <p className="text-[9px] font-bold tracking-[0.15em] uppercase" style={{ color: "#C29A5B" }}>Post Gate</p>
-              <p className="text-xs" style={{ color: "#1A2332" }}>Is the written argument ready?</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <p className="text-[11px] hidden lg:block" style={{ color: "#8A8578" }}>
-              Approval opens visual concept development in Film Studio.
-            </p>
-            <button
-              onClick={handleHold}
-              className="text-xs font-medium px-3 py-1.5 rounded-sm transition-colors hover:bg-black/5"
-              style={{ border: "1px solid #DDD8CE", color: "#8A8578" }}
-            >
-              Hold
-            </button>
-            <button
-              onClick={() => { void handleRequestRevision() }}
-              className="text-xs font-medium px-3 py-1.5 rounded-sm transition-colors hover:bg-black/5"
-              style={{ border: "1px solid #1A2332", color: "#1A2332" }}
-            >
-              Request revision
-            </button>
-            <TeachStudio
-              productionId={production.id}
-              surface="approval_desk"
-              target="Post gate"
-              before={assembleArgument(production.sections)}
-              compact
-            />
-            {storyScore?.blocking && storyScore.blocking.length > 0 && (
-              <span className="text-[10px] font-bold px-2 py-1 rounded-sm" style={{ backgroundColor: "rgba(220,38,38,0.1)", color: "#B91C1C" }}>
-                {storyScore.blocking.length} blocking dimension{storyScore.blocking.length > 1 ? "s" : ""}
-              </span>
+          <div className="flex flex-col gap-3">
+            {postAlreadyApproved && (
+              <div
+                className="rounded-sm px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                style={{ backgroundColor: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.22)" }}
+              >
+                <div>
+                  <p className="text-[10px] font-bold tracking-[0.14em] uppercase mb-1" style={{ color: "#15803D" }}>
+                    Next gate
+                  </p>
+                  <p className="text-sm font-medium" style={{ color: "#1A2332" }}>
+                    Post approved. Choose your concept direction.
+                  </p>
+                </div>
+                <Link
+                  href={`/film-studio?id=${production.id}`}
+                  className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-sm transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: "#1A2332", color: "#FFFFFF", border: "1px solid #1A2332" }}
+                >
+                  Continue to Film Studio
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
             )}
-            <button
-              onClick={handleApprove}
-              disabled={!isPostGate || saving || (storyScore?.blocking?.length ?? 0) > 0}
-              className="flex items-center gap-1.5 text-xs font-semibold px-4 py-1.5 rounded-sm transition-opacity hover:opacity-90 disabled:opacity-40"
-              style={{ backgroundColor: "#1A2332", color: "#FFFFFF" }}
-            >
-              {saving ? "Scoring..." : "Approve post"}
-              <ArrowRight className="w-3 h-3" />
-            </button>
+
+            <div className="flex items-center justify-between gap-6">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: "#C29A5B" }} />
+                <div className="min-w-0">
+                  <p className="text-[9px] font-bold tracking-[0.15em] uppercase" style={{ color: "#C29A5B" }}>Post Gate</p>
+                  <p className="text-xs" style={{ color: "#1A2332" }}>Is the written argument ready?</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-[11px] hidden lg:block" style={{ color: "#8A8578" }}>
+                    Approval opens visual concept development in Film Studio.
+                  </p>
+                  <button
+                    onClick={handleHold}
+                    className="text-xs font-medium px-3 py-1.5 rounded-sm transition-colors hover:bg-black/5"
+                    style={{ border: "1px solid #DDD8CE", color: "#8A8578" }}
+                  >
+                    Hold
+                  </button>
+                  <button
+                    onClick={() => { void handleRequestRevision() }}
+                    className="text-xs font-medium px-3 py-1.5 rounded-sm transition-colors hover:bg-black/5"
+                    style={{ border: "1px solid #1A2332", color: "#1A2332" }}
+                  >
+                    Request revision
+                  </button>
+                  <TeachStudio
+                    productionId={production.id}
+                    surface="approval_desk"
+                    target="Post gate"
+                    before={assembleArgument(production.sections)}
+                    compact
+                  />
+                  {blockingCount > 0 && (
+                    <span className="text-[10px] font-bold px-2 py-1 rounded-sm" style={{ backgroundColor: "rgba(220,38,38,0.1)", color: "#B91C1C" }}>
+                      {blockingCount} blocking dimension{blockingCount > 1 ? "s" : ""}
+                    </span>
+                  )}
+                  <button
+                    onClick={handleApprove}
+                    disabled={!isPostGate || saving || blockingCount > 0}
+                    className="flex items-center gap-1.5 text-xs font-semibold px-4 py-1.5 rounded-sm transition-opacity hover:opacity-90 disabled:opacity-40"
+                    style={{ backgroundColor: "#1A2332", color: "#FFFFFF" }}
+                  >
+                    {saving ? "Scoring..." : "Approve post"}
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+                {!saving && isPostGate && blockingCount > 0 && (
+                  <p className="text-[11px]" style={{ color: "#B91C1C" }}>
+                    {blockingCount} blocking dimension{blockingCount > 1 ? "s" : ""} must clear before approval.
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
