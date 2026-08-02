@@ -1,25 +1,26 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Shell from "@/components/Shell"
-import {
-  nextGate,
-  stageLabel,
-  approvedGateCount,
-  GATE_QUESTIONS,
-  type Production,
-  type GateKey,
-} from "@/data/studio"
+import type { Production, GateKey } from "@/data/studio"
 import { getProductions, PRODUCTIONS_CHANGED_EVENT } from "@/lib/studio-store"
+import { nextGate, approvedGateCount } from "@/data/studio"
+import { productionGradient } from "@/lib/studio-badges"
 import {
-  thinkingRoomCount,
-  approvalDeskCount,
-  filmStudioCount,
-  totalDecisionCount,
-  productionGradient,
-} from "@/lib/studio-badges"
-import { Search, Plus } from "lucide-react"
+  Search,
+  Bell,
+  Plus,
+  Play,
+  Sparkles,
+  Lightbulb,
+  Eye,
+  FileText,
+  Film,
+  Package,
+  ChevronRight,
+  Activity,
+} from "lucide-react"
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -48,10 +49,14 @@ function relativeTime(iso: string): string {
   return `${days} days ago`
 }
 
-function decisionSubtitle(count: number): string {
-  if (count === 0) return "Everything is moving. No decisions waiting."
-  if (count === 1) return "One decision is holding this week's work."
-  return `${count} decisions are holding this week's work.`
+function statusSummary(productions: Production[]): string {
+  const active = productions.filter((p) => nextGate(p) !== null).length
+  const ready = productions.filter((p) => nextGate(p) === null).length
+  const parts: string[] = []
+  if (active > 0) parts.push(`${active} ${active === 1 ? "production is" : "productions are"} moving`)
+  if (ready > 0) parts.push(`${ready} ${ready === 1 ? "package is" : "packages are"} ready`)
+  if (parts.length === 0) return "The Studio is quiet. Bring a post to begin."
+  return parts.join(". ") + "."
 }
 
 function gateRoute(p: Production, gate: GateKey): string {
@@ -60,111 +65,323 @@ function gateRoute(p: Production, gate: GateKey): string {
   return `/film-studio/${p.id}`
 }
 
-function gateCategoryLabel(gate: GateKey): string {
+function gateLabel(gate: GateKey): string {
   const map: Record<GateKey, string> = {
-    truth: "Truth Approval",
-    post: "Post Approval",
-    concept: "Concept Approval",
-    keyframes: "Keyframe Approval",
-    film: "Final Film Approval",
+    truth: "Approve truth",
+    post: "Approve post",
+    concept: "Choose concept",
+    keyframes: "Approve keyframes",
+    film: "Approve final film",
   }
   return map[gate]
 }
 
-function gateReviewLabel(gate: GateKey): string {
+function gateStageLabel(gate: GateKey): string {
   const map: Record<GateKey, string> = {
-    truth: "Review truth",
-    post: "Review post",
-    concept: "Review concept",
-    keyframes: "Review frames",
-    film: "Review film",
+    truth: "Shaping post",
+    post: "Post review",
+    concept: "Concept selection",
+    keyframes: "Keyframe planning",
+    film: "Final film review",
   }
   return map[gate]
 }
 
-function gateDecisionTime(gate: GateKey): string {
-  const map: Record<GateKey, string> = {
-    truth: "5 min review",
-    post: "10 min review",
-    concept: "8 min review",
-    keyframes: "12 min review",
-    film: "15 min review",
-  }
-  return map[gate]
+// gateIcon helper removed — components resolved via lookup objects inside render functions
+
+function stageProgress(p: Production): { approved: number; total: number; pct: number } {
+  const approved = approvedGateCount(p)
+  const total = 5
+  return { approved, total, pct: (approved / total) * 100 }
 }
 
-function stageDotColor(gate: GateKey | null): string {
-  if (gate === null) return "#2F62D8"
-  const map: Record<GateKey, string> = {
-    truth: "#2F62D8",
-    post: "#2F62D8",
-    concept: "#C29A5B",
-    keyframes: "#C29A5B",
-    film: "#2F62D8",
-  }
-  return map[gate]
-}
+// ─── Production Card ───────────────────────────────────────────────────────────
 
-// ─── Stat counter ──────────────────────────────────────────────────────────────
+function ProductionCard({ production, onClick }: { production: Production; onClick: () => void }) {
+  const gate = nextGate(production)
+  const { approved, total, pct } = stageProgress(production)
+  const hasFrame = production.film.shots.some((s) => s.renderedImageUrl)
 
-function StatCounter({
-  label,
-  value,
-  onClick,
-  first = false,
-}: {
-  label: string
-  value: number
-  onClick?: () => void
-  first?: boolean
-}) {
   return (
-    <div className="flex items-stretch flex-1 min-w-0">
-      {!first && (
-        <div className="w-px self-stretch flex-shrink-0" style={{ backgroundColor: "#DDD8CE" }} />
-      )}
-      <button
-        onClick={onClick}
-        disabled={!onClick}
-        className="flex-1 px-5 py-4 text-left hover:bg-black/[0.02] transition-colors disabled:cursor-default"
-      >
-        <p
-          className="text-[9px] font-bold tracking-[0.15em] uppercase mb-2"
-          style={{ color: "#C29A5B" }}
-        >
-          {label}
-        </p>
-        <div className="flex items-center gap-1.5">
-          <span
-            className="font-serif leading-none"
-            style={{ fontSize: "28px", color: "#1A2332", fontWeight: 400 }}
-          >
-            {value}
-          </span>
-          <span
-            className="w-1 h-1 rounded-full flex-shrink-0 mb-0.5"
-            style={{ backgroundColor: "#2F62D8" }}
+    <button
+      onClick={onClick}
+      className="group flex flex-col text-left rounded-lg border transition-all hover:shadow-md"
+      style={{
+        backgroundColor: "#FFFFFF",
+        borderColor: "#DDD8CE",
+        overflow: "hidden",
+      }}
+    >
+      {/* Thumbnail */}
+      <div className="relative aspect-video flex items-center justify-center" style={{ backgroundColor: "#0D1626" }}>
+        {hasFrame ? (
+          <div
+            className="absolute inset-0"
+            style={{
+              background: productionGradient(production.title),
+              opacity: 0.9,
+            }}
           />
+        ) : (
+          <div
+            className="absolute inset-0"
+            style={{ background: productionGradient(production.title), opacity: 0.6 }}
+          />
+        )}
+        <div className="relative z-10 px-4 text-center">
+          <p className="font-serif text-sm leading-snug" style={{ color: "rgba(255,255,255,0.85)" }}>
+            {production.title}
+          </p>
         </div>
-      </button>
+        {gate && (
+          <div
+            className="absolute top-2 right-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide"
+            style={{ backgroundColor: "rgba(13,22,38,0.7)", color: "#C29A5B" }}
+          >
+            {gateStageLabel(gate)}
+          </div>
+        )}
+      </div>
+
+      {/* Body */}
+      <div className="p-3 flex-1 flex flex-col gap-2">
+        <p className="text-[11px] leading-snug line-clamp-2" style={{ color: "#4A5568" }}>
+          {production.sourceThought}
+        </p>
+
+        {/* Progress */}
+        <div className="flex items-center gap-2 mt-auto">
+          <div className="flex-1 h-[3px] rounded-full overflow-hidden" style={{ backgroundColor: "#EAE6DF" }}>
+            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: "#2F62D8" }} />
+          </div>
+          <span className="text-[10px]" style={{ color: "#8A8578" }}>{approved}/{total}</span>
+        </div>
+
+        {/* Next action */}
+        {gate && (
+          <div className="flex items-center gap-1.5 text-[10px]" style={{ color: "#C29A5B" }}>
+            <ChevronRight className="w-2.5 h-2.5" />
+            <span className="font-semibold uppercase tracking-wide">{gateLabel(gate)}</span>
+          </div>
+        )}
+      </div>
+    </button>
+  )
+}
+
+// ─── Decision Card ─────────────────────────────────────────────────────────────
+
+function DecisionCard({ production, onClick }: { production: Production; onClick: () => void }) {
+  const gate = nextGate(production)!
+  const gateIcons: Record<GateKey, React.ElementType> = {
+    truth: Lightbulb,
+    post: FileText,
+    concept: Sparkles,
+    keyframes: Eye,
+    film: Film,
+  }
+  const Icon = gateIcons[gate]
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left rounded-lg border p-4 transition-all hover:shadow-sm"
+      style={{ backgroundColor: "#FFFFFF", borderColor: "#DDD8CE" }}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className="flex-shrink-0 rounded-md flex items-center justify-center"
+          style={{ width: 36, height: 36, backgroundColor: "rgba(47,98,216,0.08)" }}
+        >
+          <Icon className="w-4 h-4" style={{ color: "#2F62D8" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[9px] font-bold tracking-[0.14em] uppercase mb-0.5" style={{ color: "#C29A5B" }}>
+            {gateStageLabel(gate)}
+          </p>
+          <p className="font-serif text-sm leading-snug" style={{ color: "#1A2332" }}>
+            {production.title}
+          </p>
+          <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "#4A5568" }}>
+            {gateLabel(gate)} — {relativeTime(production.updatedAt)}
+          </p>
+        </div>
+        <ChevronRight className="w-4 h-4 flex-shrink-0 mt-1" style={{ color: "#8A8578" }} />
+      </div>
+    </button>
+  )
+}
+
+// ─── Recommendation Card (mock — will be memory-driven) ─────────────────────────
+
+interface Recommendation {
+  type: "continue_thread" | "revisit_idea" | "new_direction" | "reuse_character" | "respond_signal"
+  title: string
+  argument: string
+  why: string
+  memoriesUsed: string[]
+}
+
+const SAMPLE_RECOMMENDATIONS: Recommendation[] = [
+  {
+    type: "continue_thread",
+    title: "The Founder Who Became the System",
+    argument: "The Man Who Carried a City ends with the child lifting the case. What happens when the city outgrows the child?",
+    why: "Story thread 'The Founder Must Become Unnecessary' has one published post and an unresolved question: what does the founder do after the weight transfers?",
+    memoriesUsed: ["Canon Scene 003", "Story thread: Founder independence", "Symbol: case/container"],
+  },
+  {
+    type: "reuse_character",
+    title: "The Mapmaker Returns",
+    argument: "The mapmaker from 'Living Roads' could anchor a post about planning vs. preparedness.",
+    why: "This character has one appearance and strong visual identity. Audience response to the first film was positive.",
+    memoriesUsed: ["Character: The Mapmaker", "Visual language: Transit blue", "Symbol: Map"],
+  },
+]
+
+function RecommendationCard({ rec }: { rec: Recommendation }) {
+  const router = useRouter()
+
+  return (
+    <div
+      className="rounded-lg border p-4"
+      style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E0D6" }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <Sparkles className="w-3.5 h-3.5" style={{ color: "#C29A5B" }} />
+        <span className="text-[9px] font-bold tracking-[0.14em] uppercase" style={{ color: "#C29A5B" }}>
+          {rec.type.replace(/_/g, " ")}
+        </span>
+      </div>
+      <p className="font-serif text-sm leading-snug mb-1" style={{ color: "#1A2332" }}>
+        {rec.title}
+      </p>
+      <p className="text-[11px] leading-relaxed mb-2" style={{ color: "#4A5568" }}>
+        {rec.argument}
+      </p>
+      <p className="text-[10px] leading-relaxed mb-3 italic" style={{ color: "#8A8578" }}>
+        {rec.why}
+      </p>
+      <div className="flex flex-wrap gap-1 mb-3">
+        {rec.memoriesUsed.map((m) => (
+          <span
+            key={m}
+            className="text-[9px] px-1.5 py-0.5 rounded"
+            style={{ backgroundColor: "rgba(47,98,216,0.06)", color: "#2F62D8" }}
+          >
+            {m}
+          </span>
+        ))}
+      </div>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => router.push("/thinking-room/new")}
+          className="text-[11px] font-semibold transition-colors hover:underline"
+          style={{ color: "#2F62D8" }}
+        >
+          Develop this post →
+        </button>
+        <button className="text-[11px] transition-colors hover:underline" style={{ color: "#8A8578" }}>
+          Save to Ideas
+        </button>
+      </div>
     </div>
   )
 }
 
-// ─── Thumbnail ─────────────────────────────────────────────────────────────────
+// ─── Package Card ──────────────────────────────────────────────────────────────
 
-function ProductionThumb({ title, w = 52, h = 52 }: { title: string; w?: number; h?: number }) {
+function PackageCard({ production, onClick }: { production: Production; onClick: () => void }) {
+  const hasVideo = production.film.shots.some((s) => s.renderedVideoUrl)
+  const shotCount = production.film.shots.length
+
   return (
-    <div
-      className="flex-shrink-0 rounded-sm"
-      style={{ width: w, height: h, background: productionGradient(title) }}
-    />
+    <button
+      onClick={onClick}
+      className="group flex flex-col text-left"
+    >
+      <div
+        className="relative aspect-video rounded-lg overflow-hidden mb-2"
+        style={{ background: productionGradient(production.title) }}
+      >
+        <div className="absolute inset-0 flex items-center justify-center">
+          {hasVideo ? (
+            <div className="flex items-center justify-center w-10 h-10 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.9)" }}>
+              <Play className="w-4 h-4" style={{ color: "#0D1626" }} />
+            </div>
+          ) : (
+            <Package className="w-5 h-5" style={{ color: "rgba(255,255,255,0.4)" }} />
+          )}
+        </div>
+      </div>
+      <p className="font-serif text-xs leading-snug group-hover:underline" style={{ color: "#1A2332" }}>
+        {production.title}
+      </p>
+      <div className="flex items-center gap-2 mt-0.5">
+        <span className="text-[10px]" style={{ color: "#2F62D8" }}>Ready</span>
+        {shotCount > 0 && (
+          <span className="text-[10px]" style={{ color: "#8A8578" }}>
+            · {shotCount} shots · ~{shotCount * 8}s
+          </span>
+        )}
+      </div>
+    </button>
   )
 }
 
-// ─── Command Center ────────────────────────────────────────────────────────────
+// ─── Studio Activity Indicator ─────────────────────────────────────────────────
 
-export default function CommandCenterPage() {
+function StudioActivityIndicator({ active }: { active: boolean }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1.5 rounded transition-colors"
+        style={{
+          backgroundColor: open ? "rgba(47,98,216,0.08)" : "transparent",
+          color: active ? "#2F62D8" : "#8A8578",
+        }}
+      >
+        <Activity className="w-3 h-3" />
+        <span className="hidden sm:inline">{active ? "Studio is working" : "Studio is idle"}</span>
+        <span className="sm:hidden">{active ? "Working" : "Idle"}</span>
+        <span
+          className="w-1.5 h-1.5 rounded-full"
+          style={{
+            backgroundColor: active ? "#2F62D8" : "#8A8578",
+            animation: active ? "pulse 2s infinite" : undefined,
+          }}
+        />
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 top-full mt-2 w-72 rounded-lg border shadow-xl z-50"
+          style={{ backgroundColor: "#FFFFFF", borderColor: "#DDD8CE" }}
+        >
+          <div className="p-3 border-b" style={{ borderColor: "#EAE6DF" }}>
+            <p className="text-[10px] font-bold tracking-[0.14em] uppercase" style={{ color: "#8A8578" }}>
+              Studio Activity
+            </p>
+          </div>
+          <div className="p-3">
+            <p className="text-[11px] leading-relaxed" style={{ color: "#4A5568" }}>
+              {active
+                ? "The Studio is processing your production. This may take a few minutes."
+                : "No active jobs. The Studio is waiting for your next move."}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Main Page ─────────────────────────────────────────────────────────────────
+
+export default function StudioHomePage() {
   const router = useRouter()
   const [productions, setProductions] = useState<Production[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -176,33 +393,61 @@ export default function CommandCenterPage() {
     return () => window.removeEventListener(PRODUCTIONS_CHANGED_EVENT, load)
   }, [])
 
-  const decisionQueue = productions
-    .filter((p) => nextGate(p) !== null)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  // ─── Derived data ───
+  const decisionQueue = useMemo(() =>
+    productions
+      .filter((p) => nextGate(p) !== null)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    [productions]
+  )
 
-  const inProduction = productions
-    .filter((p) => { const g = nextGate(p); return g !== null && g !== "truth" })
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0, 6)
+  const inProduction = useMemo(() =>
+    productions
+      .filter((p) => {
+        const g = nextGate(p)
+        return g !== null
+      })
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, 6),
+    [productions]
+  )
 
-  const readyPackages = productions.filter((p) => nextGate(p) === null)
-  const totalDecisions = totalDecisionCount(productions)
+  const readyPackages = useMemo(() =>
+    productions.filter((p) => nextGate(p) === null),
+    [productions]
+  )
 
+  const nowShowing = useMemo(() => {
+    // Latest production with a rendered video, or latest ready package
+    const withVideo = productions
+      .filter((p) => p.film.shots.some((s) => s.renderedVideoUrl))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    if (withVideo.length > 0) return withVideo[0]
+    return readyPackages[0] ?? null
+  }, [productions, readyPackages])
+
+  const hasActivity = false // Will be wired to real job status
+
+  // ─── Render ───
   return (
     <Shell>
       <div className="min-h-screen" style={{ backgroundColor: "#F4F1EA" }}>
-
-        {/* ── Header ── */}
+        {/* ─── Global Top Bar ─── */}
         <div
-          className="flex items-center justify-between px-8 py-[10px] border-b"
-          style={{ borderColor: "#DDD8CE" }}
+          className="sticky top-0 z-30 flex items-center justify-between px-6 py-2.5 border-b backdrop-blur-sm"
+          style={{
+            backgroundColor: "rgba(244,241,234,0.92)",
+            borderColor: "#DDD8CE",
+          }}
         >
-          <p
-            className="text-[10px] font-bold tracking-[0.15em] uppercase"
-            style={{ color: "#8A8578" }}
-          >
-            {todayLabel()}
-          </p>
+          {/* Left: page title */}
+          <div className="flex items-center gap-3">
+            <p className="text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: "#8A8578" }}>
+              Studio
+            </p>
+          </div>
+
+          {/* Right: actions */}
           <div className="flex items-center gap-2">
             <button
               className="p-1.5 rounded transition-colors hover:bg-black/5"
@@ -212,283 +457,262 @@ export default function CommandCenterPage() {
               <Search className="w-3.5 h-3.5" />
             </button>
             <button
+              className="p-1.5 rounded transition-colors hover:bg-black/5 relative"
+              style={{ color: "#8A8578" }}
+              aria-label="Notifications"
+            >
+              <Bell className="w-3.5 h-3.5" />
+              {decisionQueue.length > 0 && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold"
+                  style={{ backgroundColor: "#DC2626", color: "#FFFFFF" }}
+                >
+                  {decisionQueue.length}
+                </span>
+              )}
+            </button>
+            <StudioActivityIndicator active={hasActivity} />
+            <button
               onClick={() => router.push("/thinking-room/new")}
               className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded transition-opacity hover:opacity-90"
               style={{ backgroundColor: "#1A2332", color: "#FFFFFF" }}
             >
-              Bring a thought
               <Plus className="w-3 h-3" />
+              Bring a post
             </button>
           </div>
         </div>
 
-        {/* ── Greeting ── */}
-        <div className="px-8 pt-7 pb-5">
-          <h1
-            className="font-serif leading-none"
-            style={{ fontSize: "52px", color: "#1A2332", fontWeight: 400, letterSpacing: "-0.01em" }}
-          >
-            {greeting()}
-          </h1>
-          <p className="mt-2 text-[13px]" style={{ color: "#8A8578" }}>
-            {decisionSubtitle(totalDecisions)}
-          </p>
-        </div>
-
-        {/* ── Stat row — flat strip with hairlines ── */}
-        <div
-          className="mx-8 flex"
-          style={{ borderTop: "1px solid #DDD8CE", borderBottom: "1px solid #DDD8CE", backgroundColor: "#FFFFFF" }}
-        >
-          <StatCounter
-            label="Thoughts waiting"
-            value={thinkingRoomCount(productions)}
-            onClick={() => router.push("/thinking-room")}
-            first
-          />
-          <StatCounter
-            label="Truth review"
-            value={thinkingRoomCount(productions)}
-            onClick={() => router.push("/thinking-room?filter=truth-review")}
-          />
-          <StatCounter
-            label="Post review"
-            value={approvalDeskCount(productions)}
-            onClick={() => router.push("/approvals?filter=post-review")}
-          />
-          <StatCounter
-            label="Films in production"
-            value={filmStudioCount(productions)}
-            onClick={() => router.push("/film-studio")}
-          />
-          <StatCounter
-            label="Ready this week"
-            value={readyPackages.length}
-            onClick={() => router.push("/library")}
-          />
-        </div>
-
-        {/* ── Two-column content ── */}
-        <div className="flex mx-8 mt-8 pb-16">
-
-          {/* Left column */}
-          <div
-            className="flex-1 min-w-0 pr-10"
-            style={{ borderRight: "1px solid #DDD8CE" }}
-          >
-
-            {/* Needs your decision */}
-            <section className="mb-10">
-              <h2
-                className="font-serif mb-1"
-                style={{ fontSize: "22px", color: "#1A2332", fontWeight: 400 }}
-              >
-                Needs your decision
-              </h2>
-              <p className="text-xs mb-5" style={{ color: "#8A8578" }}>
-                The work only moves when you do.
-              </p>
-
-              {loaded && decisionQueue.length === 0 ? (
-                <p className="text-xs py-4" style={{ color: "#8A8578" }}>
-                  No decisions waiting. The studio is clear.
-                </p>
-              ) : (
-                <div style={{ border: "1px solid #DDD8CE", borderRadius: 4, overflow: "hidden", backgroundColor: "#FFFFFF" }}>
-                  {decisionQueue.map((p, i) => {
-                    const gate = nextGate(p)!
-                    return (
-                      <div
-                        key={p.id}
-                        className="flex items-center gap-4 px-4 py-3.5"
-                        style={{ borderTop: i === 0 ? "none" : "1px solid #EAE6DF" }}
-                      >
-                        <ProductionThumb title={p.title} w={48} h={48} />
-                        <div className="flex-1 min-w-0">
-                          <p
-                            className="text-[9px] font-bold tracking-[0.14em] uppercase mb-0.5"
-                            style={{ color: "#C29A5B" }}
-                          >
-                            {gateCategoryLabel(gate)}
-                          </p>
-                          <p
-                            className="font-serif text-sm leading-snug"
-                            style={{ color: "#1A2332", fontWeight: 400 }}
-                          >
-                            {p.title}
-                          </p>
-                          <p className="text-[11px] mt-0.5" style={{ color: "#8A8578" }}>
-                            {GATE_QUESTIONS[gate]}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3 flex-shrink-0">
-                          <span className="text-[11px] hidden lg:block" style={{ color: "#8A8578" }}>
-                            {gateDecisionTime(gate)}
-                          </span>
-                          <button
-                            onClick={() => router.push(gateRoute(p, gate))}
-                            className="text-xs font-medium px-3 py-1.5 rounded-sm transition-colors hover:bg-black/5"
-                            style={{ border: "1px solid #1A2332", color: "#1A2332", backgroundColor: "transparent", whiteSpace: "nowrap" }}
-                          >
-                            {gateReviewLabel(gate)}
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </section>
-
-            {/* In production */}
-            <section>
-              <h2
-                className="font-serif mb-5"
-                style={{ fontSize: "22px", color: "#1A2332", fontWeight: 400 }}
-              >
-                In production
-              </h2>
-
-              {loaded && inProduction.length === 0 ? (
-                <p className="text-xs" style={{ color: "#8A8578" }}>
-                  No productions past Truth review yet.
-                </p>
-              ) : (
-                <div style={{ border: "1px solid #DDD8CE", borderRadius: 4, overflow: "hidden", backgroundColor: "#FFFFFF" }}>
-                  {/* Header row */}
-                  <div
-                    className="hidden md:grid text-[9px] font-bold tracking-[0.1em] uppercase px-4 py-2.5"
-                    style={{ color: "#8A8578", gridTemplateColumns: "1fr 130px 150px 64px 80px", borderBottom: "1px solid #EAE6DF" }}
-                  >
-                    <span>Production</span>
-                    <span>Stage</span>
-                    <span>Progress</span>
-                    <span>Spend</span>
-                    <span>Updated</span>
-                  </div>
-                  {inProduction.map((p, i) => {
-                    const gate = nextGate(p)
-                    const approved = approvedGateCount(p)
-                    const pct = (approved / 5) * 100
-                    return (
-                      <button
-                        key={p.id}
-                        onClick={() => router.push(gate ? gateRoute(p, gate) : "/library")}
-                        className="w-full text-left px-4 py-3 transition-colors hover:bg-black/[0.02]"
-                        style={{ borderTop: i === 0 ? "none" : "1px solid #EAE6DF" }}
-                      >
-                        <div
-                          className="hidden md:grid items-center"
-                          style={{ gridTemplateColumns: "1fr 130px 150px 64px 80px" }}
-                        >
-                          <span className="text-xs font-medium truncate pr-3" style={{ color: "#1A2332" }}>
-                            {p.title}
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: stageDotColor(gate) }} />
-                            <span className="text-[11px] truncate" style={{ color: "#4A5568" }}>{stageLabel(p)}</span>
-                          </div>
-                          <div className="flex items-center gap-2 pr-3">
-                            <div className="h-[3px] rounded-full overflow-hidden" style={{ backgroundColor: "#EAE6DF", width: 72 }}>
-                              <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: "#2F62D8" }} />
-                            </div>
-                            <span className="text-[11px] whitespace-nowrap" style={{ color: "#8A8578" }}>{approved} of 5</span>
-                          </div>
-                          <span className="text-[11px]" style={{ color: "#8A8578" }}>$0.00</span>
-                          <span className="text-[11px]" style={{ color: "#8A8578" }}>{relativeTime(p.updatedAt)}</span>
-                        </div>
-                        {/* Mobile */}
-                        <div className="md:hidden">
-                          <p className="text-xs font-medium" style={{ color: "#1A2332" }}>{p.title}</p>
-                          <p className="text-[11px] mt-0.5" style={{ color: "#8A8578" }}>{stageLabel(p)} · {relativeTime(p.updatedAt)}</p>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </section>
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          {/* ─── A. Header ─── */}
+          <div className="mb-8">
+            <p className="text-[10px] font-bold tracking-[0.15em] uppercase mb-2" style={{ color: "#8A8578" }}>
+              {todayLabel()}
+            </p>
+            <h1
+              className="font-serif leading-none"
+              style={{ fontSize: "48px", color: "#1A2332", fontWeight: 400, letterSpacing: "-0.01em" }}
+            >
+              {greeting()}
+            </h1>
+            <p className="mt-2.5 text-[13px]" style={{ color: "#4A5568" }}>
+              {statusSummary(productions)}
+            </p>
           </div>
 
-          {/* Right rail */}
-          <div className="w-[260px] flex-shrink-0 pl-8">
-
-            {/* Ready this week */}
-            <section className="mb-7">
+          {/* ─── B. Now Showing ─── */}
+          {nowShowing && (
+            <section className="mb-10">
               <div className="flex items-baseline justify-between mb-4">
-                <h2
-                  className="font-serif"
-                  style={{ fontSize: "22px", color: "#1A2332", fontWeight: 400 }}
+                <h2 className="font-serif" style={{ fontSize: "22px", color: "#1A2332", fontWeight: 400 }}>
+                  Now showing
+                </h2>
+              </div>
+
+              <div
+                className="rounded-xl border overflow-hidden"
+                style={{ backgroundColor: "#FFFFFF", borderColor: "#DDD8CE" }}
+              >
+                <div className="grid md:grid-cols-[minmax(0,1fr)_320px]">
+                  {/* Video / frame preview */}
+                  <div className="relative aspect-video" style={{ backgroundColor: "#0D1626" }}>
+                    <div
+                      className="absolute inset-0"
+                      style={{ background: productionGradient(nowShowing.title), opacity: 0.85 }}
+                    />
+                    {nowShowing.film.shots.find((s) => s.renderedVideoUrl)?.renderedVideoUrl ? (
+                      <video
+                        src={nowShowing.film.shots.find((s) => s.renderedVideoUrl)?.renderedVideoUrl}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        controls
+                        playsInline
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="flex items-center justify-center w-14 h-14 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.9)" }}>
+                          <Play className="w-5 h-5" style={{ color: "#0D1626" }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info panel */}
+                  <div className="p-5 flex flex-col justify-between" style={{ borderLeft: "1px solid #EAE6DF" }}>
+                    <div>
+                      <p className="text-[9px] font-bold tracking-[0.14em] uppercase mb-2" style={{ color: "#C29A5B" }}>
+                        Latest film
+                      </p>
+                      <h3 className="font-serif text-xl leading-tight mb-2" style={{ color: "#1A2332" }}>
+                        {nowShowing.title}
+                      </h3>
+                      <p className="text-[11px] leading-relaxed" style={{ color: "#4A5568" }}>
+                        Video companion for:
+                      </p>
+                      <p className="text-[11px] leading-relaxed italic mt-0.5" style={{ color: "#1A2332" }}>
+                        {nowShowing.sourceThought.slice(0, 120)}{nowShowing.sourceThought.length > 120 ? "..." : ""}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 space-y-1.5">
+                      <button
+                        onClick={() => router.push(`/film-studio/render?id=${nowShowing.id}`)}
+                        className="flex items-center gap-1.5 text-[11px] font-medium w-full px-3 py-2 rounded transition-colors"
+                        style={{ backgroundColor: "#1A2332", color: "#FFFFFF" }}
+                      >
+                        <Play className="w-3 h-3" />
+                        Play film
+                      </button>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => router.push(`/film-studio?id=${nowShowing.id}`)}
+                          className="flex-1 text-[10px] font-medium px-2.5 py-1.5 rounded border transition-colors hover:bg-black/[0.02]"
+                          style={{ borderColor: "#DDD8CE", color: "#4A5568" }}
+                        >
+                          Open production
+                        </button>
+                        <button
+                          className="flex-1 text-[10px] font-medium px-2.5 py-1.5 rounded border transition-colors hover:bg-black/[0.02]"
+                          style={{ borderColor: "#DDD8CE", color: "#4A5568" }}
+                        >
+                          Copy post
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* ─── C. In Production ─── */}
+          {inProduction.length > 0 && (
+            <section className="mb-10">
+              <div className="flex items-baseline justify-between mb-4">
+                <h2 className="font-serif" style={{ fontSize: "22px", color: "#1A2332", fontWeight: 400 }}>
+                  In production
+                </h2>
+                <button
+                  onClick={() => router.push("/approvals")}
+                  className="text-[11px] font-medium hover:underline"
+                  style={{ color: "#2F62D8" }}
                 >
-                  Ready this week
+                  View all →
+                </button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {inProduction.map((p) => (
+                  <ProductionCard
+                    key={p.id}
+                    production={p}
+                    onClick={() => {
+                      const gate = nextGate(p)
+                      if (gate) router.push(gateRoute(p, gate))
+                    }}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ─── D. Needs Your Decision ─── */}
+          {decisionQueue.length > 0 && (
+            <section className="mb-10">
+              <div className="flex items-baseline justify-between mb-4">
+                <div>
+                  <h2 className="font-serif" style={{ fontSize: "22px", color: "#1A2332", fontWeight: 400 }}>
+                    Needs your decision
+                  </h2>
+                  <p className="text-[11px] mt-0.5" style={{ color: "#8A8578" }}>
+                    The work only moves when you do.
+                  </p>
+                </div>
+              </div>
+              <div className="grid md:grid-cols-2 gap-3">
+                {decisionQueue.map((p) => (
+                  <DecisionCard
+                    key={p.id}
+                    production={p}
+                    onClick={() => {
+                      const gate = nextGate(p)!
+                      router.push(gateRoute(p, gate))
+                    }}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ─── E. The Studio Sees Something ─── */}
+          <section className="mb-10">
+            <div className="flex items-baseline justify-between mb-4">
+              <div>
+                <h2 className="font-serif" style={{ fontSize: "22px", color: "#1A2332", fontWeight: 400 }}>
+                  The Studio sees something
+                </h2>
+                <p className="text-[11px] mt-0.5" style={{ color: "#8A8578" }}>
+                  Recommendations drawn from your World Bible and production history.
+                </p>
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              {SAMPLE_RECOMMENDATIONS.map((rec, i) => (
+                <RecommendationCard key={i} rec={rec} />
+              ))}
+            </div>
+          </section>
+
+          {/* ─── F. Recent Packages ─── */}
+          {readyPackages.length > 0 && (
+            <section className="mb-10">
+              <div className="flex items-baseline justify-between mb-4">
+                <h2 className="font-serif" style={{ fontSize: "22px", color: "#1A2332", fontWeight: 400 }}>
+                  Recent packages
                 </h2>
                 <button
                   onClick={() => router.push("/library")}
                   className="text-[11px] font-medium hover:underline"
                   style={{ color: "#2F62D8" }}
                 >
-                  Open Library ›
+                  Open Library →
                 </button>
               </div>
-
-              {readyPackages.length === 0 ? (
-                <p className="text-xs" style={{ color: "#8A8578" }}>
-                  No approved packages yet this week.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {readyPackages.slice(0, 3).map((p, i) => (
-                    <button
-                      key={p.id}
-                      onClick={() => router.push(`/library/${p.id}`)}
-                      className="w-full text-left group"
-                    >
-                      {i > 0 && (
-                        <div className="border-t mb-3" style={{ borderColor: "#DDD8CE" }} />
-                      )}
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="rounded-sm flex-shrink-0"
-                          style={{ width: 64, height: 46, background: productionGradient(p.title) }}
-                        />
-                        <div className="min-w-0">
-                          <p
-                            className="font-serif text-xs leading-snug group-hover:underline"
-                            style={{ color: "#1A2332", fontWeight: 400 }}
-                          >
-                            {p.title}
-                          </p>
-                          <p className="text-[10px] font-semibold mt-0.5" style={{ color: "#2F62D8" }}>
-                            Ready
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {readyPackages.slice(0, 4).map((p) => (
+                  <PackageCard
+                    key={p.id}
+                    production={p}
+                    onClick={() => router.push(`/library/${p.id}`)}
+                  />
+                ))}
+              </div>
             </section>
+          )}
 
-            {/* Divider */}
-            <div className="border-t mb-6" style={{ borderColor: "#DDD8CE" }} />
-
-            {/* Quote block */}
-            <div className="relative">
-              <span
-                className="font-serif absolute -top-3 -left-0.5 leading-none select-none pointer-events-none"
-                style={{ fontSize: "52px", color: "#C29A5B", lineHeight: 1, opacity: 0.85 }}
-                aria-hidden="true"
+          {/* ─── Empty State ─── */}
+          {loaded && productions.length === 0 && (
+            <section className="py-20 text-center">
+              <div
+                className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-6"
+                style={{ backgroundColor: "rgba(47,98,216,0.06)" }}
               >
-                &ldquo;
-              </span>
-              <blockquote
-                className="font-serif pt-6 leading-relaxed"
-                style={{ fontSize: "15px", color: "#1A2332", fontWeight: 400 }}
+                <Sparkles className="w-7 h-7" style={{ color: "#2F62D8" }} />
+              </div>
+              <h2 className="font-serif mb-3" style={{ fontSize: "28px", color: "#1A2332", fontWeight: 400 }}>
+                The Studio is ready.
+              </h2>
+              <p className="text-sm mb-8 max-w-md mx-auto leading-relaxed" style={{ color: "#4A5568" }}>
+                Bring a LinkedIn post, a rough thought, or a voice note. The Studio will help you turn it into a cinematic film.
+              </p>
+              <button
+                onClick={() => router.push("/thinking-room/new")}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "#1A2332", color: "#FFFFFF" }}
               >
-                The post carries the argument. The film creates the experience.
-              </blockquote>
-            </div>
-          </div>
+                <Plus className="w-4 h-4" />
+                Bring a post
+              </button>
+            </section>
+          )}
         </div>
       </div>
     </Shell>

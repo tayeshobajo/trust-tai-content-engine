@@ -4,17 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getProductions, PRODUCTIONS_CHANGED_EVENT } from "@/lib/studio-store";
+import { nextGate } from "@/data/studio";
 import {
-  thinkingRoomCount,
-  approvalDeskCount,
-  filmStudioCount,
-} from "@/lib/studio-badges";
-import {
-  LayoutDashboard,
-  Lightbulb,
-  CheckSquare,
   Clapperboard,
-  BookOpen,
+  Layers,
+  Lightbulb,
+  Globe,
+  TrendingUp,
   Settings,
   X,
 } from "lucide-react";
@@ -23,15 +19,16 @@ interface NavItem {
   label: string;
   href: string;
   icon: React.ElementType;
-  badgeKey?: "thinking" | "approval" | "film";
+  badgeKey?: "decisions";
 }
 
+// Spec nav: Studio | Productions | Ideas | World | Signals
 const navItems: NavItem[] = [
-  { label: "Command Center", href: "/", icon: LayoutDashboard },
-  { label: "Thinking Room", href: "/thinking-room", icon: Lightbulb, badgeKey: "thinking" },
-  { label: "Approval Desk", href: "/approvals", icon: CheckSquare, badgeKey: "approval" },
-  { label: "Film Studio", href: "/film-studio", icon: Clapperboard, badgeKey: "film" },
-  { label: "Library", href: "/library", icon: BookOpen },
+  { label: "Studio", href: "/", icon: Clapperboard },
+  { label: "Productions", href: "/productions", icon: Layers, badgeKey: "decisions" },
+  { label: "Ideas", href: "/ideas", icon: Lightbulb },
+  { label: "World", href: "/world", icon: Globe },
+  { label: "Signals", href: "/signals", icon: TrendingUp },
 ];
 
 interface SidebarProps {
@@ -41,16 +38,12 @@ interface SidebarProps {
 
 export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const [badges, setBadges] = useState({ thinking: 0, approval: 0, film: 0 });
+  const [decisionCount, setDecisionCount] = useState(0);
 
   useEffect(() => {
     const load = () => {
       const p = getProductions();
-      setBadges({
-        thinking: thinkingRoomCount(p),
-        approval: approvalDeskCount(p),
-        film: filmStudioCount(p),
-      });
+      setDecisionCount(p.filter((prod) => nextGate(prod) !== null).length);
     };
     load();
     window.addEventListener(PRODUCTIONS_CHANGED_EVENT, load);
@@ -62,12 +55,10 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
     };
   }, []);
 
-  const isActive = (href: string) =>
-    href === "/"
-      ? pathname === "/" || pathname === "/dashboard"
-      : pathname === href ||
-        pathname.startsWith(href + "/") ||
-        pathname.startsWith(href + "?");
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(href + "/") || pathname.startsWith(href + "?");
+  };
 
   return (
     <>
@@ -113,12 +104,12 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
         {/* Divider */}
         <div className="mx-5 border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
 
-        {/* Nav */}
+        {/* Primary Nav */}
         <nav className="flex-1 px-2 pt-2 space-y-[2px] overflow-y-auto">
           {navItems.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
-            const count = item.badgeKey ? badges[item.badgeKey] : 0;
+            const showBadge = item.badgeKey === "decisions" && decisionCount > 0;
 
             return (
               <Link
@@ -142,12 +133,12 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
                   style={{ color: active ? "#FFFFFF" : "rgba(212,208,200,0.5)" }}
                 />
                 <span className="flex-1 truncate font-medium leading-tight">{item.label}</span>
-                {count > 0 && (
+                {showBadge && (
                   <span
                     className="text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: "#2F62D8", color: "#FFFFFF" }}
                   >
-                    {count}
+                    {decisionCount}
                   </span>
                 )}
               </Link>
@@ -158,6 +149,58 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
         {/* Bottom */}
         <div className="px-2 pb-4 mt-2">
           <div className="mx-3 border-t mb-2" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
+
+          {/* Legacy nav (collapsed) — old routes still accessible */}
+          <details className="mb-1">
+            <summary
+              className="flex items-center gap-2.5 px-3 py-1.5 text-[10px] cursor-pointer"
+              style={{ color: "rgba(212,208,200,0.3)" }}
+            >
+              More
+            </summary>
+            <div className="px-3 py-1 space-y-1">
+              <Link
+                href="/approvals"
+                onClick={onClose}
+                className="block text-[10px] py-0.5"
+                style={{ color: "rgba(212,208,200,0.4)" }}
+              >
+                Approval Desk
+              </Link>
+              <Link
+                href="/thinking-room"
+                onClick={onClose}
+                className="block text-[10px] py-0.5"
+                style={{ color: "rgba(212,208,200,0.4)" }}
+              >
+                Thinking Room
+              </Link>
+              <Link
+                href="/film-studio"
+                onClick={onClose}
+                className="block text-[10px] py-0.5"
+                style={{ color: "rgba(212,208,200,0.4)" }}
+              >
+                Film Studio
+              </Link>
+              <Link
+                href="/library"
+                onClick={onClose}
+                className="block text-[10px] py-0.5"
+                style={{ color: "rgba(212,208,200,0.4)" }}
+              >
+                Library
+              </Link>
+              <Link
+                href="/dashboard"
+                onClick={onClose}
+                className="block text-[10px] py-0.5"
+                style={{ color: "rgba(212,208,200,0.4)" }}
+              >
+                Old Dashboard
+              </Link>
+            </div>
+          </details>
 
           <Link
             href="/settings"
@@ -183,7 +226,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
             <div className="min-w-0">
               <p className="text-xs font-medium text-white truncate leading-tight">Tai Shobajo</p>
               <p className="text-[10px] truncate leading-tight" style={{ color: "rgba(212,208,200,0.4)" }}>
-                Founder and final approver
+                Founder
               </p>
             </div>
           </div>
