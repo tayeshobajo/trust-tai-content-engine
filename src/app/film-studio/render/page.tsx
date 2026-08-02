@@ -123,6 +123,8 @@ function RenderWorkspace() {
 
   async function generateMotion(shot: Shot) {
     if (!shot.renderedImageUrl) return
+    if (!production) return
+    const prodId = production.id
 
     setShotState((current) => ({
       ...current,
@@ -138,6 +140,8 @@ function RenderWorkspace() {
           motionPrompt: `Add slow cinematic motion to shot ${shot.no}: ${shot.description}`,
           shotDescription: shot.description,
           durationSec: shot.durationSec,
+          productionId: prodId,
+          shotNumber: shot.no,
         }),
       })
 
@@ -156,7 +160,8 @@ function RenderWorkspace() {
 
       startTransition(() => {
         if (!production) return
-        updateProduction(production.id, (current) => ({
+        const prodId = production.id
+        updateProduction(prodId, (current) => ({
           ...current,
           film: {
             ...current.film,

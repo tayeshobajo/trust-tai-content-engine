@@ -7,14 +7,21 @@ const openai = new OpenAI()
 
 function chooseSize(shotDescription: string): "1024x1536" | "1536x1024" {
   const lower = shotDescription.toLowerCase()
+  // Only force landscape for explicit wide/establishing shots.
+  // "city" alone is not a landscape trigger — most narrative shots are
+  // character-focused and read better at 2:3 portrait.
   const landscapeHints = [
-    "wide",
+    "wide shot",
+    "wide establish",
+    "establishing shot",
     "landscape",
-    "city",
-    "valley",
     "panoramic",
     "horizon",
-    "establishing",
+    "valley wide",
+    "cityscape",
+    "pull back",
+    "pull-back",
+    "full city",
   ]
 
   return landscapeHints.some((hint) => lower.includes(hint)) ? "1536x1024" : "1024x1536"

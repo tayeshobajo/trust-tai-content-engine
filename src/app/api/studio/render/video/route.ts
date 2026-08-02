@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
 import { buildWorldBibleMotionPrompt } from "@/lib/world-bible"
 
 const FAL_VIDEO_MODEL = "fal-ai/kling-video/v2.5-turbo/pro/image-to-video"
@@ -14,6 +15,8 @@ interface VideoRenderRequest {
   motionPrompt?: string
   durationSec?: number
   shotDescription?: string
+  productionId?: string
+  shotNumber?: number
 }
 
 interface FalQueueResponse {
@@ -69,6 +72,42 @@ async function parseFalResponse(response: Response): Promise<unknown> {
     return JSON.parse(text) as unknown
   } catch {
     return { raw: text }
+  }
+}
+
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) throw new Error("Missing Supabase env vars for server-side upload")
+  return createClient(url, key, { auth: { persistSession: false } })
+}
+
+async function uploadVideoToStorage(
+  videoUrl: string,
+  productionId: string,
+  shotNumber: number,
+): Promise<string | null> {
+  try {
+    const response = await fetch(videoUrl)
+    if (!response.ok) return null
+    const buffer = Buffer.from(await response.arrayBuffer())
+    const supabase = getSupabaseAdmin()
+    const fileName = `${productionId}/shot-${shotNumber}.mp4`
+    const { error } = await supabase.storage
+      .from("rendered-videos")
+      .upload(fileName, buffer, {
+        contentType: "video/mp4",
+        cacheControl: "3600",
+        upsert: true,
+      })
+    if (error) {
+      console.error("[studio/render/video] storage upload failed:", error)
+      return null
+    }
+    const { data } = supabase.storage.from("rendered-videos").getPublicUrl(fileName)
+    return data.publicUrl
+  } catch {
+    return null
   }
 }
 
@@ -162,7 +201,7 @@ async function waitForVideo(queue: FalQueueResponse): Promise<{
 
 export async function POST(req: NextRequest) {
   try {
-    const { imageUrl, motionPrompt, durationSec, shotDescription } = (await req.json()) as VideoRenderRequest
+    const { imageUrl, motionPrompt, durationSec, shotDescription, productionId, shotNumber } = (await req.json()) as VideoRenderRequest
 
     if (!imageUrl?.trim()) {
       return NextResponse.json({ error: "Missing imageUrl" }, { status: 400 })
@@ -213,8 +252,20 @@ export async function POST(req: NextRequest) {
         )
       }
 
+      // Auto-upload to Supabase Storage for permanent URL
+      let permanentUrl = result.videoUrl
+      if (productionId && shotNumber) {
+        const uploaded = await uploadVideoToStorage(
+          result.videoUrl,
+          productionId,
+          shotNumber,
+        )
+        if (uploaded) permanentUrl = uploaded
+      }
+
       return NextResponse.json({
-        videoUrl: result.videoUrl,
+        videoUrl: permanentUrl,
+        falUrl: result.videoUrl !== permanentUrl ? result.videoUrl : undefined,
         requestId: queue.request_id ?? null,
       })
     } catch (error) {
