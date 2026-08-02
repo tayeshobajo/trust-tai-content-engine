@@ -17,6 +17,7 @@ import {
   getProductions,
   PRODUCTIONS_CHANGED_EVENT,
   updateProduction,
+  setGate,
 } from "@/lib/studio-store"
 import {
   Check,
@@ -25,6 +26,7 @@ import {
   CircleDashed,
   Clapperboard,
   Film,
+  ArrowRight,
   ImageIcon,
   ListChecks,
   Route,
@@ -104,6 +106,9 @@ function FilmStudio() {
     null
 
   const postApproved = selected?.gates.post.status === "approved"
+  const conceptApproved = selected?.gates.concept.status === "approved"
+  const keyframesApproved = selected?.gates.keyframes.status === "approved"
+  const filmApproved = selected?.gates.film.status === "approved"
   const activeConcept = selected
     ? selected.film.concepts.find((c) => c.key === selected.film.selectedConcept) ?? null
     : null
@@ -307,6 +312,36 @@ function FilmStudio() {
               </div>
             </div>
 
+            {/* ── CONCEPT GATE ──────────────────────────────────────── */}
+            {activeConcept && (
+              <div className="bg-[#0F172A] rounded-xl p-5 mb-6 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    {selected.gates.concept.status === "approved"
+                      ? "Concept approved"
+                      : `Direction locked in: ${activeConcept.name}`}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {selected.gates.concept.status === "approved"
+                      ? "Review treatment, shots, and keyframes below."
+                      : "Approve to lock this direction and move to treatment and shots."}
+                  </p>
+                </div>
+                {selected.gates.concept.status !== "approved" ? (
+                  <button
+                    onClick={() => setGate(selected.id, "concept", "approved")}
+                    className="flex-shrink-0 px-5 py-2.5 bg-white text-[#0F172A] text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    Approve concept →
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-sm text-green-400 font-medium">
+                    <Check className="w-4 h-4" /> Approved
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* ── SECTION 2: Treatment ─────────────────────────────── */}
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-5 mb-6">
               <div className="flex items-center gap-2 mb-4">
@@ -400,6 +435,31 @@ function FilmStudio() {
                   {selected.film.keyframes.anchors}
                 </p>
               </div>
+
+              {/* Approve keyframes gate */}
+              {conceptApproved && !keyframesApproved && (
+                <div className="mt-4 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-4">
+                  <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                  <p className="text-sm text-[#0F172A] flex-1">
+                    Review the keyframes above. When world, character, and composition work, approve to proceed.
+                  </p>
+                  <button
+                    onClick={() => selected && setGate(selected.id, "keyframes", "approved")}
+                    className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors flex-shrink-0"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Approve keyframes
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+              {keyframesApproved && (
+                <div className="mt-4 flex items-center gap-2 text-sm text-green-700">
+                  <Check className="w-4 h-4" />
+                  <span className="font-medium">Keyframes approved.</span>
+                  {" Complete the continuity checklist, then approve the final film."}
+                </div>
+              )}
             </div>
 
             {/* ── SECTION 5: Model route + Continuity ─────────────── */}
@@ -479,7 +539,13 @@ function FilmStudio() {
             <div className="bg-[#0F172A] rounded-xl p-6 mb-8">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold text-white mb-1">Ready for the Approval Desk?</p>
+                  <p className="text-sm font-semibold text-white mb-1">
+                    {filmApproved
+                      ? "Film approved. Package ready."
+                      : keyframesApproved && continuityAllDone
+                      ? "All checks passed. Ready to approve final film."
+                      : "Complete all gates to finish this production."}
+                  </p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
                     {(["concept", "keyframes", "film"] as const).map((gate) => {
                       const approved = selected.gates[gate].status === "approved"
@@ -501,14 +567,32 @@ function FilmStudio() {
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
+                  {keyframesApproved && continuityAllDone && !filmApproved && (
+                    <button
+                      onClick={() => selected && setGate(selected.id, "film", "approved")}
+                      className="flex items-center gap-1.5 text-sm font-semibold px-5 py-2.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors mb-2"
+                    >
+                      <Check className="w-4 h-4" />
+                      Approve final film
+                    </button>
+                  )}
+                  {filmApproved && (
+                    <button
+                      onClick={() => router.push(`/library`)}
+                      className="flex items-center gap-1.5 text-sm font-semibold px-5 py-2.5 rounded-lg bg-white text-[#0F172A] hover:bg-gray-100 transition-colors mb-2"
+                    >
+                      View in Library
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     onClick={() => router.push(`/approvals?id=${selected.id}`)}
-                    disabled={!continuityAllDone}
+                    disabled={selected.gates.concept.status !== "approved"}
                     className="flex-shrink-0 px-5 py-2.5 bg-white text-[#0F172A] text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Go to Approval Desk →
                   </button>
-                  {!continuityAllDone && (
+                  {selected.gates.concept.status === "approved" && !continuityAllDone && (
                     <p className="text-xs text-slate-400 text-right">
                       {continuityTotal - continuityDone} continuity item{continuityTotal - continuityDone !== 1 ? "s" : ""} remaining
                     </p>
