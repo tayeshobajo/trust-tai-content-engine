@@ -6,7 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Shell from "@/components/Shell"
 import type { Production, Shot } from "@/data/studio"
 import { getProductions, PRODUCTIONS_CHANGED_EVENT, updateProduction } from "@/lib/studio-store"
-import { ArrowLeft, Film, ImageIcon, LoaderCircle, Sparkles, Video } from "lucide-react"
+import { ArrowLeft, ChevronDown, ChevronUp, Clapperboard, Film, ImageIcon, LoaderCircle, Music2, Sparkles, Video } from "lucide-react"
+import {
+  CANON_SCENE_003_ORCHESTRATION,
+  type SceneOrchestration,
+} from "@/lib/world-bible"
 
 const WORLD_BIBLE_CONTEXT = `Production: "The Man Who Carried a City" — Canon Scene 003.
 
@@ -16,7 +20,7 @@ Active symbols this production: case/container (city as responsibility made visi
 
 Active world laws: Law 1 (inner realities acquire physical form), Law 3 (every person carries a world), Law 5 (weight contains information).`
 
-type ShotState = Record<number, { loading?: boolean; error?: string; videoMessage?: string }>
+type ShotState = Record<number, { loading?: boolean; error?: string; videoMessage?: string; conductorOpen?: boolean }>
 
 function RenderWorkspace() {
   const router = useRouter()
@@ -132,6 +136,10 @@ function RenderWorkspace() {
     }))
 
     try {
+      // Pull orchestration from the shot (if Tai has customised it) or fall back to canonical plan
+      const orchestration: SceneOrchestration | undefined =
+        shot.orchestration ?? CANON_SCENE_003_ORCHESTRATION[shot.no]
+
       const response = await fetch("/api/studio/render/video", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -142,6 +150,7 @@ function RenderWorkspace() {
           durationSec: shot.durationSec,
           productionId: prodId,
           shotNumber: shot.no,
+          orchestration,
         }),
       })
 
@@ -365,6 +374,28 @@ function RenderWorkspace() {
                               <Film className="h-4 w-4" />
                               Generate motion
                             </button>
+
+                            {/* Conductor toggle */}
+                            <button
+                              onClick={() =>
+                                setShotState((current) => ({
+                                  ...current,
+                                  [shot.no]: {
+                                    ...current[shot.no],
+                                    conductorOpen: !current[shot.no]?.conductorOpen,
+                                  },
+                                }))
+                              }
+                              className="inline-flex items-center gap-2 rounded-lg border border-[#C29A5B]/30 bg-[#C29A5B]/5 px-3 py-2.5 text-xs font-semibold text-[#F0D7AD] transition-colors hover:bg-[#C29A5B]/15"
+                            >
+                              <Clapperboard className="h-3.5 w-3.5" />
+                              Conductor
+                              {state?.conductorOpen ? (
+                                <ChevronUp className="h-3 w-3" />
+                              ) : (
+                                <ChevronDown className="h-3 w-3" />
+                              )}
+                            </button>
                           </div>
 
                           {state?.error && (
@@ -374,6 +405,56 @@ function RenderWorkspace() {
                           {state?.videoMessage && (
                             <p className="mt-3 text-sm text-[#F0D7AD]">{state.videoMessage}</p>
                           )}
+
+                          {/* Scene Conductor Panel */}
+                          {state?.conductorOpen && (() => {
+                            const plan: SceneOrchestration | undefined =
+                              shot.orchestration ?? CANON_SCENE_003_ORCHESTRATION[shot.no]
+                            if (!plan) return null
+                            return (
+                              <div className="mt-4 rounded-2xl border border-[#C29A5B]/25 bg-[#C29A5B]/5 p-4 space-y-3">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#C29A5B] flex items-center gap-2">
+                                  <Music2 className="h-3.5 w-3.5" />
+                                  Scene Conductor — Shot {shot.no}
+                                </p>
+
+                                <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                                  <div className="rounded-xl border border-white/10 bg-black/20 p-2.5">
+                                    <p className="text-[10px] uppercase tracking-[0.15em] text-slate-400">Camera</p>
+                                    <p className="mt-1 text-xs font-semibold text-white">{plan.cameraDirection}</p>
+                                  </div>
+                                  <div className="rounded-xl border border-white/10 bg-black/20 p-2.5">
+                                    <p className="text-[10px] uppercase tracking-[0.15em] text-slate-400">Pace</p>
+                                    <p className="mt-1 text-xs font-semibold text-white">{plan.pace}</p>
+                                  </div>
+                                  <div className="rounded-xl border border-white/10 bg-black/20 p-2.5">
+                                    <p className="text-[10px] uppercase tracking-[0.15em] text-slate-400">Beat</p>
+                                    <p className="mt-1 text-xs font-semibold text-white">{plan.emotionalBeat}</p>
+                                  </div>
+                                  <div className="rounded-xl border border-white/10 bg-black/20 p-2.5">
+                                    <p className="text-[10px] uppercase tracking-[0.15em] text-slate-400">Exit via</p>
+                                    <p className="mt-1 text-xs font-semibold text-white">{plan.exitMomentum.transitionType}</p>
+                                  </div>
+                                </div>
+
+                                {plan.incomingMomentum && (
+                                  <p className="text-xs text-slate-400">
+                                    <span className="text-[#F0D7AD] font-medium">Receives:</span>{" "}
+                                    {plan.incomingMomentum.direction} at {plan.incomingMomentum.pace} pace
+                                    {" "}→{" "}
+                                    <span className="text-[#F0D7AD] font-medium">Exits:</span>{" "}
+                                    {plan.exitMomentum.direction} via {plan.exitMomentum.transitionType}
+                                  </p>
+                                )}
+
+                                {plan.directorNote && (
+                                  <p className="text-xs leading-relaxed text-slate-300 border-l-2 border-[#C29A5B]/40 pl-3 italic">
+                                    {plan.directorNote}
+                                  </p>
+                                )}
+                              </div>
+                            )
+                          })()}
 
                           {shot.renderPrompt && (
                             <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3">

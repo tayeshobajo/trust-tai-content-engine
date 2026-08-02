@@ -127,6 +127,8 @@ export interface Shot {
   renderedVideoUrl?: string
   renderPrompt?: string
   motionStatus?: "idle" | "queued" | "blocked" | "rendered"
+  /** Scene Conductor orchestration data — governs how this shot moves in relation to adjacent shots. */
+  orchestration?: import("@/lib/world-bible").SceneOrchestration
 }
 
 export interface KeyframePlan {

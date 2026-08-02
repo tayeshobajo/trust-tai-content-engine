@@ -257,6 +257,225 @@ export function buildWorldBiblePrompt(parts: {
   ].join("\n")
 }
 
+// ---------------------------------------------------------------------------
+// 11. Scene Orchestration — the conductor layer that links shots together
+// ---------------------------------------------------------------------------
+
+/**
+ * CameraDirection — the primary axis of movement in this clip.
+ * The conductor ensures adjacent shots don't fight each other.
+ */
+export type CameraDirection =
+  | "push-in"       // slow dolly forward
+  | "pull-back"     // camera retreats, reveals scale
+  | "drift-left"    // subtle pan / drift left
+  | "drift-right"   // subtle pan / drift right
+  | "rise"          // slow tilt or crane up
+  | "descend"       // slow tilt or crane down
+  | "hold-still"    // locked-off, world moves inside frame
+  | "orbit-slow"    // slow arc around subject
+
+/**
+ * MotionPace — emotional rhythm of the shot.
+ */
+export type MotionPace = "glacial" | "slow" | "measured" | "urgent"
+
+/**
+ * TransitionType — how this shot hands off to the next.
+ * The next shot must receive what this shot exits with.
+ */
+export type TransitionType =
+  | "hard-cut"        // sudden; next shot starts cold
+  | "match-cut"       // exit and entry share a visual axis or shape
+  | "dissolve"        // momentum bleeds through
+  | "breath"          // pause; next shot resets energy
+
+/**
+ * EmotionalBeat — the single feeling this clip must land.
+ */
+export type EmotionalBeat =
+  | "recognition"     // the character sees something they couldn't before
+  | "weight"          // the burden becomes visible or physical
+  | "scale"           // the world dwarfs the human — with dignity
+  | "intimacy"        // close; personal; the character's interiority
+  | "threshold"       // at the edge of something new
+  | "arrival"         // something completes
+  | "revelation"      // the system behind the visible is revealed
+  | "memory"          // the past exerts itself on the present
+
+export interface SceneOrchestration {
+  /** Direction this shot's camera moves. */
+  cameraDirection: CameraDirection
+  /** Pacing / energy. */
+  pace: MotionPace
+  /** What the previous shot exited with — this shot must receive it. */
+  incomingMomentum?: {
+    direction: CameraDirection
+    pace: MotionPace
+    transitionType: TransitionType
+  }
+  /** What this shot exits with — the next shot must answer it. */
+  exitMomentum: {
+    direction: CameraDirection
+    pace: MotionPace
+    transitionType: TransitionType
+  }
+  /** The single emotional beat this clip must land. */
+  emotionalBeat: EmotionalBeat
+  /** Optional directorial note — specific instruction that overrides general rules. */
+  directorNote?: string
+}
+
+/**
+ * Default orchestration plan for "The Man Who Carried a City" — Canon Scene 003.
+ * Each shot's motion is choreographed in relation to the shots before and after it.
+ * Edit this plan to change the film's cinematic grammar for the full production.
+ */
+export const CANON_SCENE_003_ORCHESTRATION: Record<number, SceneOrchestration> = {
+  1: {
+    cameraDirection: "pull-back",
+    pace: "glacial",
+    exitMomentum: { direction: "pull-back", pace: "glacial", transitionType: "dissolve" },
+    emotionalBeat: "scale",
+    directorNote: "Open on weight. The city is already there before we see who carries it. Pull back slowly — let the scale unfold like a secret.",
+  },
+  2: {
+    cameraDirection: "push-in",
+    pace: "slow",
+    incomingMomentum: { direction: "pull-back", pace: "glacial", transitionType: "dissolve" },
+    exitMomentum: { direction: "push-in", pace: "slow", transitionType: "match-cut" },
+    emotionalBeat: "weight",
+    directorNote: "After the wide reveal, move toward the character — answer the pull-back with an approach. We are getting closer to the person, not the spectacle.",
+  },
+  3: {
+    cameraDirection: "hold-still",
+    pace: "slow",
+    incomingMomentum: { direction: "push-in", pace: "slow", transitionType: "match-cut" },
+    exitMomentum: { direction: "hold-still", pace: "slow", transitionType: "breath" },
+    emotionalBeat: "intimacy",
+    directorNote: "Lock the camera. The character moves; the world waits. This is the only shot where stillness is the statement. Let the push-in from shot 2 land here and settle.",
+  },
+  4: {
+    cameraDirection: "rise",
+    pace: "measured",
+    incomingMomentum: { direction: "hold-still", pace: "slow", transitionType: "breath" },
+    exitMomentum: { direction: "rise", pace: "measured", transitionType: "match-cut" },
+    emotionalBeat: "threshold",
+    directorNote: "After the breath, begin to ascend. The rise is earned by the stillness before it. This is the turn — weight becoming something the character begins to understand.",
+  },
+  5: {
+    cameraDirection: "drift-right",
+    pace: "measured",
+    incomingMomentum: { direction: "rise", pace: "measured", transitionType: "match-cut" },
+    exitMomentum: { direction: "drift-right", pace: "measured", transitionType: "dissolve" },
+    emotionalBeat: "revelation",
+    directorNote: "The rise gives way to a lateral drift — like the eye reading a sentence. The system is being revealed across the frame, not from above.",
+  },
+  6: {
+    cameraDirection: "drift-right",
+    pace: "slow",
+    incomingMomentum: { direction: "drift-right", pace: "measured", transitionType: "dissolve" },
+    exitMomentum: { direction: "push-in", pace: "slow", transitionType: "match-cut" },
+    emotionalBeat: "memory",
+    directorNote: "Continue the drift from shot 5 but decelerate — like recognition slowing the body. End by finding a push-in target: a face, a detail, a symbol the viewer needs to hold.",
+  },
+  7: {
+    cameraDirection: "pull-back",
+    pace: "glacial",
+    incomingMomentum: { direction: "push-in", pace: "slow", transitionType: "match-cut" },
+    exitMomentum: { direction: "pull-back", pace: "glacial", transitionType: "hard-cut" },
+    emotionalBeat: "arrival",
+    directorNote: "Mirror shot 1 — but now the pull-back is earned. The city is still vast. But the character has changed. Audience carries that out with them.",
+  },
+}
+
+const CAMERA_DIRECTION_INSTRUCTION: Record<CameraDirection, string> = {
+  "push-in": "Slow dolly-forward. The camera approaches the subject — gently, with intention. No zoom. Movement is steady and deliberate.",
+  "pull-back": "Slow pull-back or crane retreat. The camera withdraws to reveal scale. Movement is glacial — the world grows larger as the camera recedes.",
+  "drift-left": "Subtle lateral drift left. The camera reads the scene like a sentence from right to left. No pan snap. Continuous, unhurried.",
+  "drift-right": "Subtle lateral drift right. The camera reads the scene left to right — like turning a page. Smooth, unhurried.",
+  "rise": "Slow upward tilt or crane rise. Height is perspective, not superiority. The camera gains altitude to reveal the systemic view.",
+  "descend": "Slow downward tilt or crane descend. The camera comes to the human scale — witness, not surveillance.",
+  "hold-still": "Locked-off camera. The world and character move inside a fixed frame. Restraint is the statement. Do not drift or shake.",
+  "orbit-slow": "Slow, wide arc around the subject. The character remains centered while the world rotates into view around them.",
+}
+
+const PACE_INSTRUCTION: Record<MotionPace, string> = {
+  glacial: "Movement is almost imperceptible — like watching a glacier. If you think it might be too slow, it is correct.",
+  slow: "Slow and deliberate. Every movement has weight. No urgency.",
+  measured: "Controlled pacing. There is intention in every second — not hurried, not frozen.",
+  urgent: "Heightened pace — but never chaotic. The world moves faster because something is being resolved.",
+}
+
+const EMOTIONAL_BEAT_INSTRUCTION: Record<EmotionalBeat, string> = {
+  recognition: "This shot must land a moment of seeing — the character (or viewer) understands something they could not before. The motion should move toward that clarity.",
+  weight: "The burden must become physical in this shot. Motion should convey mass, gravity, and consequence — not drama.",
+  scale: "The human must feel small in relation to the system — but not diminished. Scale is about context, not insignificance.",
+  intimacy: "This is close. The motion must slow to the speed of a held breath. The audience is inside the character's experience.",
+  threshold: "The character is at the edge of something new. The motion should lean forward — not commit, but lean.",
+  arrival: "Something completes. Motion decelerates as it reaches its destination. There is rest here.",
+  revelation: "The unseen system becomes visible. Motion should track the reveal — follow what is being uncovered.",
+  memory: "The past is exerting itself. Motion should feel slightly dreamlike — not hallucinatory, but soft at the edges.",
+}
+
+const TRANSITION_INSTRUCTION: Record<TransitionType, string> = {
+  "hard-cut": "This shot ends completely before the next begins. Do not linger or fade. Exit cleanly.",
+  "match-cut": "This shot exits on a vector (direction + speed) that the next shot must receive and continue. Do not end abruptly — sustain the movement into the last frame.",
+  "dissolve": "This shot's momentum bleeds into the next. Let the motion soften in the last seconds — the energy should feel transferable.",
+  "breath": "This shot ends with a pause. The next shot begins fresh. Exit by decelerating to near-stillness — like an exhale.",
+}
+
+export function buildConductedMotionPrompt(parts: {
+  shotDescription: string
+  motionPrompt: string
+  orchestration: SceneOrchestration
+}): string {
+  const { shotDescription, motionPrompt, orchestration } = parts
+
+  const incoming = orchestration.incomingMomentum
+    ? `INCOMING MOMENTUM (what the previous shot handed off): The previous shot exited with a ${orchestration.incomingMomentum.direction} at ${orchestration.incomingMomentum.pace} pace via a ${orchestration.incomingMomentum.transitionType}. This shot must receive that energy — either continuing it, contrasting it with intention, or landing the breath. Do not ignore what came before.`
+    : `OPENING SHOT: No incoming momentum. This clip establishes the film's kinetic identity. Set the pace deliberately — every subsequent shot will answer it.`
+
+  return [
+    `Animate this Trust Tai keyframe as CANON motion. This is not an isolated clip — it is one movement in a choreographed sequence. Do not redesign the image — preserve character identity, composition, architecture, and symbols.`,
+    ``,
+    `=== SCENE CONDUCTOR BRIEF ===`,
+    ``,
+    incoming,
+    ``,
+    `CAMERA DIRECTION FOR THIS SHOT: ${orchestration.cameraDirection}`,
+    CAMERA_DIRECTION_INSTRUCTION[orchestration.cameraDirection],
+    ``,
+    `PACING: ${orchestration.pace}`,
+    PACE_INSTRUCTION[orchestration.pace],
+    ``,
+    `EMOTIONAL BEAT: ${orchestration.emotionalBeat}`,
+    EMOTIONAL_BEAT_INSTRUCTION[orchestration.emotionalBeat],
+    ``,
+    `EXIT MOMENTUM (what this shot must hand to the next): Exit with a ${orchestration.exitMomentum.direction} motion via a ${orchestration.exitMomentum.transitionType}. ${TRANSITION_INSTRUCTION[orchestration.exitMomentum.transitionType]}`,
+    ``,
+    orchestration.directorNote
+      ? `DIRECTOR NOTE: ${orchestration.directorNote}`
+      : ``,
+    ``,
+    `=== WORLD BIBLE MOTION GOVERNANCE ===`,
+    ``,
+    `MOTION PHILOSOPHY: Move only to reveal intention, weight, memory, or recognition. Spectacle for its own sake is failure. Light behaves as recognition, not magic. Stones, atmosphere, and transit lines move with physics-like purpose.`,
+    ``,
+    `RESTRAINT: Remove one-third of the magic. Favor stone, brass, dust, haze, and human scale over spectacle. The extraordinary should feel like physics, not effects.`,
+    ``,
+    `ANTI-DRIFT: No sudden style changes, glitch, explosions, or whip pans. Characters must not become decorative. Black characters retain dignity, interiority, and agency in every frame.`,
+    ``,
+    `=== SHOT BRIEF ===`,
+    `SHOT: ${shotDescription.trim()}`,
+    `MOTION INTENT: ${motionPrompt.trim()}`,
+    ``,
+    `Keep it slow, cinematic, and grounded — a premium film shot in a coherent sequence, not an AI demo.`,
+  ]
+    .filter((line) => line !== undefined)
+    .join("\n")
+}
+
 export function buildWorldBibleMotionPrompt(parts: {
   shotDescription: string
   motionPrompt: string

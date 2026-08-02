@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { buildWorldBibleMotionPrompt } from "@/lib/world-bible"
+import {
+  buildWorldBibleMotionPrompt,
+  buildConductedMotionPrompt,
+  type SceneOrchestration,
+} from "@/lib/world-bible"
 
 const FAL_VIDEO_MODEL = "fal-ai/kling-video/v2.5-turbo/pro/image-to-video"
 const FAL_QUEUE_URL = `https://queue.fal.run/${FAL_VIDEO_MODEL}`
@@ -17,6 +21,8 @@ interface VideoRenderRequest {
   shotDescription?: string
   productionId?: string
   shotNumber?: number
+  /** Scene Conductor orchestration data for this shot. When provided, the conducted prompt is used. */
+  orchestration?: SceneOrchestration
 }
 
 interface FalQueueResponse {
@@ -144,11 +150,18 @@ async function submitVideo(input: {
   motionPrompt: string
   shotDescription: string
   durationSec: number
+  orchestration?: SceneOrchestration
 }): Promise<FalQueueResponse> {
-  const prompt = buildWorldBibleMotionPrompt({
-    shotDescription: input.shotDescription,
-    motionPrompt: input.motionPrompt,
-  })
+  const prompt = input.orchestration
+    ? buildConductedMotionPrompt({
+        shotDescription: input.shotDescription,
+        motionPrompt: input.motionPrompt,
+        orchestration: input.orchestration,
+      })
+    : buildWorldBibleMotionPrompt({
+        shotDescription: input.shotDescription,
+        motionPrompt: input.motionPrompt,
+      })
 
   const payload = await falRequest(FAL_QUEUE_URL, {
     method: "POST",
@@ -201,7 +214,7 @@ async function waitForVideo(queue: FalQueueResponse): Promise<{
 
 export async function POST(req: NextRequest) {
   try {
-    const { imageUrl, motionPrompt, durationSec, shotDescription, productionId, shotNumber } = (await req.json()) as VideoRenderRequest
+    const { imageUrl, motionPrompt, durationSec, shotDescription, productionId, shotNumber, orchestration } = (await req.json()) as VideoRenderRequest
 
     if (!imageUrl?.trim()) {
       return NextResponse.json({ error: "Missing imageUrl" }, { status: 400 })
@@ -233,6 +246,7 @@ export async function POST(req: NextRequest) {
         motionPrompt: normalizedMotionPrompt,
         shotDescription: normalizedShotDescription,
         durationSec: normalizedDurationSec,
+        orchestration,
       })
       const result = await waitForVideo(queue)
 
