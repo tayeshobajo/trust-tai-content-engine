@@ -198,6 +198,18 @@ function FilmStudio() {
             {/* Gate progress */}
             <GateStrip production={selected} />
 
+            {keyframesApproved && (
+              <div className="mb-6 flex justify-start">
+                <button
+                  onClick={() => router.push(`/film-studio/render?id=${selected.id}`)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#0F172A] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1E293B]"
+                >
+                  Render frames
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             {/* Truth anchor */}
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-5 mb-8">
               <p className="text-[11px] uppercase tracking-wider text-[#94A3B8] mb-1.5">

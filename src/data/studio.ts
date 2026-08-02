@@ -123,6 +123,10 @@ export interface Shot {
   durationSec: number
   route: string
   purpose: string
+  renderedImageUrl?: string
+  renderedVideoUrl?: string
+  renderPrompt?: string
+  motionStatus?: "idle" | "queued" | "blocked" | "rendered"
 }
 
 export interface KeyframePlan {
