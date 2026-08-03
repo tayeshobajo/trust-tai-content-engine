@@ -12,6 +12,7 @@ import {
 } from "@/lib/studio-store"
 import type { Production, ConceptDirection, ConceptKey } from "@/data/studio"
 import { GATE_ORDER } from "@/data/studio"
+import { buildPackage } from "@/lib/studio-engine"
 import {
   Check,
   ChevronRight,
@@ -910,32 +911,32 @@ function ConceptActionsPanel({ onApprove }: { onApprove: () => void }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Scene metadata for display — mapped from shot data
-const SCENE_NAMES = [
-  "The Catch",
-  "The Reveal",
-  "The Marble",
-  "The Descent",
-  "The Turn",
-  "The Settle",
-]
+// ─── Dynamic scene data helpers ──────────────────────────────────────────────
+// All scene display content is derived from production.film.shots + concept
+// so every production shows its own content, not hardcoded pilot copy.
 
-const POST_CONNECTIONS = [
-  "Intro – First paragraph (The visible problem everyone reacts to.)",
-  "Paragraph 2 (The hidden reality behind the problem.)",
-  "Paragraph 3 (The answers we reach for first.)",
-  "Paragraph 4–5 (The choice to go deeper instead of reacting.)",
-  "Paragraph 6 (The one thing that changes everything.)",
-  "Closing – Final paragraph (The lesson and the freedom it creates.)",
-]
+function deriveSceneName(shot: Production["film"]["shots"][number], idx: number): string {
+  // Capitalise the purpose as scene name; trim to a short label
+  const purpose = shot.purpose?.trim()
+  if (!purpose) return `Scene ${idx + 1}`
+  const words = purpose.split(/\s+/).slice(0, 4).join(" ")
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
 
-const NARRATION_LINES = [
-  "The cup slides. He catches it. Good save.",
-  "Pull back. The whole office is tilted. Everyone is catching something.",
-  "The first answer is the visible one.",
-  "He goes beneath the surface.",
-  "Find the one turn.",
-  "Movement is not always progress.",
-]
+function deriveNarrationLine(shot: Production["film"]["shots"][number]): string {
+  // Pull the first sentence of the shot description as VO
+  const desc = shot.description?.trim() ?? ""
+  const first = desc.split(/\.\s+/)[0]
+  return first ? first.replace(/\.$/, "") + "." : ""
+}
+
+function derivePostConnection(shot: Production["film"]["shots"][number], idx: number, total: number): string {
+  if (idx === 0) return "Opening — establishes the credible world before the tension surfaces."
+  if (idx === total - 1) return "Closing — lands the remember sentence. The argument resolves visually."
+  if (idx === 1) return "Introduces the surface behaviour the post's first insight names."
+  if (idx === total - 2) return "The turn — mirrors the post's core pivot."
+  return `Paragraph ${idx + 1} — ${shot.purpose?.toLowerCase() ?? "bridges the argument"}.`
+}
 
 const CONTINUITY_ROWS = [
   "Character consistent",
@@ -962,7 +963,7 @@ function ScriptTab({ production, onTabChange }: { production: Production; onTabC
   const [subTab, setSubTab] = useState<"scenes" | "narration" | "timeline" | "postmap">("scenes")
   const shots = production.film.shots
   const totalDuration = shots.reduce((sum, s) => sum + s.durationSec, 0)
-  const narrationWordCount = NARRATION_LINES.join(" ").split(/\s+/).filter(Boolean).length
+  const narrationWordCount = shots.slice(0, 6).map(deriveNarrationLine).join(" ").split(/\s+/).filter(Boolean).length
   function approveScript() {
     updateProduction(production.id, (p) => ({
       ...p,
@@ -1180,9 +1181,9 @@ function SceneTable({ shots, totalDuration }: { shots: Production["film"]["shots
       {/* Scene rows */}
       <div className="divide-y" style={{ borderColor: COLORS.borderLight }}>
         {rows.map(({ shot, idx, startTime, endTime }) => {
-          const sceneName = SCENE_NAMES[idx] || `Scene ${idx + 1}`
-          const narration = NARRATION_LINES[idx] || ""
-          const postConn = POST_CONNECTIONS[idx] || ""
+          const sceneName = deriveSceneName(shot, idx)
+          const narration = deriveNarrationLine(shot)
+          const postConn = derivePostConnection(shot, idx, rows.length)
 
           return (
             <div
@@ -1292,10 +1293,10 @@ function NarrationOnly({ shots }: { shots: Production["film"]["shots"] }) {
             </span>
             <div className="flex-1">
               <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: COLORS.gold }}>
-                {SCENE_NAMES[idx] || `Scene ${idx + 1}`}
+                {deriveSceneName(shot, idx)}
               </p>
               <p className="text-[12px] leading-relaxed font-serif italic" style={{ color: COLORS.textDark }}>
-                {NARRATION_LINES[idx] || ""}
+                {deriveNarrationLine(shot)}
               </p>
             </div>
             <span className="text-[9px]" style={{ color: COLORS.textMuted }}>{shot.durationSec}s</span>
@@ -1325,7 +1326,7 @@ function TimelineView({ shots, totalDuration }: { shots: Production["film"]["sho
                   {String(idx + 1).padStart(2, "0")}
                 </span>
                 <span className="text-[10px] font-medium" style={{ color: COLORS.textDark }}>
-                  {SCENE_NAMES[idx] || `Scene ${idx + 1}`}
+                  {deriveSceneName(shot, idx)}
                 </span>
                 <span className="text-[9px]" style={{ color: COLORS.textMuted }}>{shot.durationSec}s</span>
               </div>
@@ -1375,10 +1376,10 @@ function PostMapView({ shots }: { shots: Production["film"]["shots"] }) {
             </div>
             <div className="flex-1 pb-2">
               <p className="text-[10px] font-semibold" style={{ color: COLORS.textDark }}>
-                {SCENE_NAMES[idx] || `Scene ${idx + 1}`}
+                {deriveSceneName(shot, idx)}
               </p>
               <p className="text-[10px] mt-0.5" style={{ color: COLORS.textMid }}>
-                {POST_CONNECTIONS[idx] || ""}
+                {derivePostConnection(shot, idx, shots.slice(0, 6).length)}
               </p>
             </div>
           </div>
@@ -1518,23 +1519,7 @@ function formatTimecode(seconds: number): string {
 // FRAMES TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const KEYFRAME_TITLES = [
-  "The Weight",
-  "The Reveal",
-  "Beneath the Surface",
-  "The Turn",
-  "The Release",
-  "The Dawn",
-]
-
-const KEYFRAME_DESCRIPTIONS = [
-  "A city sits on his back.",
-  "The entire office is tilted.",
-  "He walks beneath the building.",
-  "He turns the valve under a heavy beam.",
-  "He releases what was never his.",
-  "The city stands. He steps back.",
-]
+// Keyframe titles + descriptions are now derived per-shot (see FramesTab)
 
 const KEYFRAME_META = [
   { cam: "Wide Shot", lens: "24mm", light: "Dawn Backlight" },
@@ -1668,8 +1653,8 @@ function FramesTab({ production, onTabChange }: { production: Production; onTabC
                   <KeyframeCard
                     key={shot.no}
                     idx={idx}
-                    title={KEYFRAME_TITLES[idx] || `Scene ${idx + 1}`}
-                    description={KEYFRAME_DESCRIPTIONS[idx] || ""}
+                    title={deriveSceneName(shot, idx)}
+                    description={shot.description}
                     meta={KEYFRAME_META[idx] || KEYFRAME_META[0]}
                     status={frameStatuses[idx]}
                     isSelected={selectedFrame === idx}
@@ -1699,7 +1684,7 @@ function FramesTab({ production, onTabChange }: { production: Production; onTabC
                       <span className="text-[9px] font-bold w-6" style={{ color: COLORS.textMuted }}>{String(idx + 1).padStart(2, "0")}</span>
                       <div className="w-10 h-10 rounded-md flex-shrink-0" style={{ background: `linear-gradient(135deg, ${COLORS.navy}10, ${COLORS.gold}10)` }} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-semibold" style={{ color: COLORS.textDark }}>{KEYFRAME_TITLES[idx] || `Scene ${idx + 1}`}</p>
+                        <p className="text-[11px] font-semibold" style={{ color: COLORS.textDark }}>{deriveSceneName(shot, idx)}</p>
                         <p className="text-[9px]" style={{ color: COLORS.textMuted }}>{meta.cam} · {meta.lens} · {meta.light}</p>
                       </div>
                       <StatusBadge status={status} />
@@ -1784,7 +1769,7 @@ function FramesTab({ production, onTabChange }: { production: Production; onTabC
         {/* ═══ RIGHT SIDEBAR ═══ */}
         <div className="space-y-4">
           {/* Selected Frame Detail */}
-          <SelectedFrameDetail idx={selectedFrame} />
+          <SelectedFrameDetail idx={selectedFrame} shot={shots[selectedFrame]} />
 
           {/* Visual Treatment */}
           <VisualTreatmentCard />
@@ -1969,10 +1954,10 @@ function SummaryCard({ icon: Icon, title, desc, action }: { icon: React.ElementT
 
 // ─── Selected Frame Detail ──────────────────────────────────────────────────
 
-function SelectedFrameDetail({ idx }: { idx: number }) {
-  const title = KEYFRAME_TITLES[idx] || `Scene ${idx + 1}`
+function SelectedFrameDetail({ idx, shot }: { idx: number; shot?: Production["film"]["shots"][number] }) {
+  const title = shot ? deriveSceneName(shot, idx) : `Scene ${idx + 1}`
   const meta = KEYFRAME_META[idx] || KEYFRAME_META[0]
-  const desc = KEYFRAME_DESCRIPTIONS[idx] || ""
+  const desc = shot?.description ?? ""
 
   const attributes = [
     { label: "Camera", value: `${meta.cam} tracking in` },
@@ -2399,7 +2384,7 @@ function ScenesTab({ production, onTabChange }: { production: Production; onTabC
                   Script excerpt
                 </p>
                 <p className="text-[11px] leading-relaxed font-serif italic" style={{ color: COLORS.textDark }}>
-                  {NARRATION_LINES[selectedScene] || "—"}
+                  {shots[selectedScene] ? deriveNarrationLine(shots[selectedScene]) : "—"}
                 </p>
                 <p className="text-[9px] mt-1" style={{ color: COLORS.textMid }}>
                   {shots[selectedScene]?.description || ""}
@@ -3451,22 +3436,6 @@ const FORMAT_PREVIEWS = [
   },
 ]
 
-const LINKEDIN_POST_PREVIEW = `The Man Who Carried a City
-
-You may have started carrying everything out of love.
-
-Love eventually builds what other people can carry too.
-
-The weight isn't the problem. The weight was never the problem. The problem is building a city that can stand when you set it down.
-
-Watch the film →`
-
-const CAPTION_PREVIEW = `The weight was never the problem.
-
-A 35-second visual parable about the systems we carry and the moment we learn to build what others can hold.
-
-#TrustTai #Leadership #SystemsThinking #FounderLife`
-
 const HASHTAGS = [
   "#TrustTai", "#Leadership", "#SystemsThinking", "#FounderLife",
   "#VisualParable", "#CinematicStorytelling", "#TheManWhoCarriedACity",
@@ -3479,9 +3448,10 @@ const EXPORT_HISTORY = [
 ]
 
 function PackageTab({ production, onTabChange: _onTabChange }: { production: Production; onTabChange: (t: TabKey) => void }) {
+  const pkg = buildPackage(production)
   const [selectedFormat, setSelectedFormat] = useState("9:16")
-  const [postEdited, setPostEdited] = useState(LINKEDIN_POST_PREVIEW)
-  const [captionEdited, setCaptionEdited] = useState(CAPTION_PREVIEW)
+  const [postEdited, setPostEdited] = useState(pkg.linkedinPost)
+  const [captionEdited, setCaptionEdited] = useState(pkg.caption)
   const doneCount = PUBLISH_CHECKLIST.filter(c => c.status === "done").length
   const totalCount = PUBLISH_CHECKLIST.length
 
