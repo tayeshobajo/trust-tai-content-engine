@@ -196,13 +196,7 @@ export default function ProductionWorkspacePage() {
           {activeTab === "frames" && <FramesTab production={production} />}
           {activeTab === "scenes" && <ScenesTab production={production} />}
           {activeTab === "edit" && <EditTab production={production} />}
-          {activeTab === "package" && (
-            <PlaceholderTab
-              title="Package"
-              subtitle="Publish-ready output: post, caption, video."
-              icon={Package}
-            />
-          )}
+          {activeTab === "package" && <PackageTab production={production} />}
           {activeTab === "memory" && (
             <PlaceholderTab
               title="Memory"
@@ -3392,6 +3386,418 @@ function NumberField({ label, value }: { label: string; value: string }) {
         className="w-full text-[9px] border rounded px-1.5 py-0.5 text-center"
         style={{ borderColor: COLORS.borderLight, color: COLORS.textDark, backgroundColor: COLORS.white }}
       />
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PACKAGE TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const PUBLISH_CHECKLIST = [
+  { label: "Concept approved", status: "done" as const },
+  { label: "Script approved", status: "done" as const },
+  { label: "Frames approved", status: "done" as const },
+  { label: "Scenes generated", status: "done" as const },
+  { label: "Edit assembled", status: "done" as const },
+  { label: "Caption reviewed", status: "review" as const },
+  { label: "Thumbnail selected", status: "review" as const },
+  { label: "Final render exported", status: "pending" as const },
+]
+
+const FORMAT_PREVIEWS = [
+  {
+    key: "9:16",
+    label: "9:16 Vertical",
+    sub: "Reels · Shorts · TikTok",
+    dims: "1080 × 1920",
+    default: true,
+  },
+  {
+    key: "1:1",
+    label: "1:1 Square",
+    sub: "LinkedIn feed · Instagram",
+    dims: "1080 × 1080",
+    default: false,
+  },
+  {
+    key: "16:9",
+    label: "16:9 Landscape",
+    sub: "YouTube · LinkedIn video",
+    dims: "1920 × 1080",
+    default: false,
+  },
+]
+
+const LINKEDIN_POST_PREVIEW = `The Man Who Carried a City
+
+You may have started carrying everything out of love.
+
+Love eventually builds what other people can carry too.
+
+The weight isn't the problem. The weight was never the problem. The problem is building a city that can stand when you set it down.
+
+Watch the film →`
+
+const CAPTION_PREVIEW = `The weight was never the problem.
+
+A 35-second visual parable about the systems we carry and the moment we learn to build what others can hold.
+
+#TrustTai #Leadership #SystemsThinking #FounderLife`
+
+const HASHTAGS = [
+  "#TrustTai", "#Leadership", "#SystemsThinking", "#FounderLife",
+  "#VisualParable", "#CinematicStorytelling", "#TheManWhoCarriedACity",
+]
+
+const EXPORT_HISTORY = [
+  { format: "9:16 Vertical", size: "198 MB", time: "2m 40s", date: "Today, 3:15 PM", status: "ready" as const },
+  { format: "1:1 Square", size: "142 MB", time: "1m 55s", date: "Today, 3:15 PM", status: "ready" as const },
+  { format: "16:9 Landscape", size: "224 MB", time: "3m 10s", date: "—", status: "pending" as const },
+]
+
+function PackageTab({ production }: { production: Production }) {
+  const [selectedFormat, setSelectedFormat] = useState("9:16")
+  const [postEdited, setPostEdited] = useState(LINKEDIN_POST_PREVIEW)
+  const [captionEdited, setCaptionEdited] = useState(CAPTION_PREVIEW)
+  const doneCount = PUBLISH_CHECKLIST.filter(c => c.status === "done").length
+  const totalCount = PUBLISH_CHECKLIST.length
+
+  return (
+    <div className="pt-6">
+      {/* ═══ HEADER ═══ */}
+      <div className="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <h1 className="font-serif text-xl" style={{ color: COLORS.textDark }}>
+            <span style={{ color: COLORS.textMuted }}>7.</span> Package for publication
+          </h1>
+          <p className="text-[11px] mt-0.5" style={{ color: COLORS.textMid }}>
+            Review the final outputs, approve the copy, and prepare every format for delivery.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="flex items-center gap-1 text-[10px] font-medium px-2.5 py-1.5 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+            <Download className="w-3 h-3" />
+            Download all
+          </button>
+          <button className="flex items-center gap-1.5 text-[10px] font-semibold px-3 py-1.5 rounded transition-opacity hover:opacity-90" style={{ backgroundColor: COLORS.navy, color: "#FFFFFF" }}>
+            <Send className="w-3 h-3" style={{ color: COLORS.gold }} />
+            Publish to LinkedIn
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+        {/* ═══ MAIN COLUMN ═══ */}
+        <div className="space-y-5">
+          {/* ═══ FORMAT PREVIEW CARDS ═══ */}
+          <div>
+            <h2 className="font-serif text-base mb-2" style={{ color: COLORS.textDark }}>Format previews</h2>
+            <p className="text-[10px] mb-3" style={{ color: COLORS.textMuted }}>The same film, adapted for every surface.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {FORMAT_PREVIEWS.map((fmt) => {
+                const isSelected = selectedFormat === fmt.key
+                return (
+                  <div
+                    key={fmt.key}
+                    onClick={() => setSelectedFormat(fmt.key)}
+                    className="rounded-xl border overflow-hidden cursor-pointer transition-all"
+                    style={{
+                      backgroundColor: COLORS.white,
+                      borderColor: isSelected ? COLORS.gold : COLORS.borderLight,
+                      borderWidth: isSelected ? 1.5 : 1,
+                      boxShadow: isSelected ? "0 2px 12px rgba(194,154,91,0.12)" : "none",
+                    }}
+                  >
+                    {/* Preview area with aspect ratio */}
+                    <div
+                      className="relative flex items-center justify-center"
+                      style={{
+                        height: fmt.key === "9:16" ? 120 : fmt.key === "1:1" ? 100 : 70,
+                        background: `linear-gradient(135deg, ${COLORS.navy}10, ${COLORS.gold}06)`,
+                      }}
+                    >
+                      {/* Mock video frame */}
+                      <div
+                        className="rounded flex items-center justify-center"
+                        style={{
+                          width: fmt.key === "9:16" ? 45 : fmt.key === "1:1" ? 60 : 90,
+                          height: fmt.key === "9:16" ? 80 : fmt.key === "1:1" ? 60 : 50,
+                          backgroundColor: "rgba(26,35,50,0.06)",
+                          border: `1px solid ${isSelected ? COLORS.gold : COLORS.border}`,
+                        }}
+                      >
+                        <Play className="w-4 h-4" style={{ color: isSelected ? COLORS.gold : COLORS.textMuted }} fill="currentColor" />
+                      </div>
+                      {fmt.default && (
+                        <div
+                          className="absolute top-1.5 right-1.5 text-[7px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded-full"
+                          style={{ backgroundColor: COLORS.gold, color: "#FFFFFF" }}
+                        >
+                          Default
+                        </div>
+                      )}
+                    </div>
+                    {/* Info */}
+                    <div className="p-2.5">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <p className="text-[10px] font-bold" style={{ color: COLORS.textDark }}>{fmt.label}</p>
+                        {isSelected && <Check className="w-3 h-3" style={{ color: COLORS.green }} />}
+                      </div>
+                      <p className="text-[8px]" style={{ color: COLORS.textMuted }}>{fmt.sub}</p>
+                      <p className="text-[8px] mt-0.5" style={{ color: COLORS.textMuted }}>{fmt.dims}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* ═══ LINKEDIN POST COPY ═══ */}
+          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: COLORS.borderLight, backgroundColor: "rgba(138,133,120,0.02)" }}>
+              <div className="flex items-center gap-2">
+                <FileText className="w-3.5 h-3.5" style={{ color: COLORS.blue }} />
+                <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.textMid }}>LinkedIn post</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button className="text-[9px] font-medium px-2 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+                  <RefreshCw className="w-2.5 h-2.5 inline mr-0.5" />
+                  Regenerate
+                </button>
+                <button className="text-[9px] font-medium px-2 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+                  <GitCompare className="w-2.5 h-2.5 inline mr-0.5" />
+                  Compare
+                </button>
+                <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "rgba(47,98,216,0.06)", color: COLORS.blue }}>
+                  {postEdited.length} chars
+                </span>
+              </div>
+            </div>
+            <div className="p-4">
+              <textarea
+                value={postEdited}
+                onChange={(e) => setPostEdited(e.target.value)}
+                rows={8}
+                className="w-full text-[11px] leading-relaxed font-serif resize-none border-0 outline-none"
+                style={{ color: COLORS.textDark, backgroundColor: "transparent" }}
+              />
+              <div className="flex items-center justify-between mt-2 pt-2 border-t" style={{ borderColor: COLORS.borderLight }}>
+                <div className="flex items-center gap-1.5">
+                  {HASHTAGS.slice(0, 4).map((tag) => (
+                    <span key={tag} className="text-[8px] font-medium px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(47,98,216,0.06)", color: COLORS.blue }}>
+                      {tag}
+                    </span>
+                  ))}
+                  <span className="text-[8px]" style={{ color: COLORS.textMuted }}>+{HASHTAGS.length - 4} more</span>
+                </div>
+                <button className="flex items-center gap-1 text-[9px] font-medium transition-colors hover:underline" style={{ color: COLORS.blue }}>
+                  <PenLine className="w-2.5 h-2.5" />
+                  Edit hashtags
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ═══ CAPTION COPY ═══ */}
+          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: COLORS.borderLight, backgroundColor: "rgba(138,133,120,0.02)" }}>
+              <div className="flex items-center gap-2">
+                <Captions className="w-3.5 h-3.5" style={{ color: COLORS.gold }} />
+                <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.textMid }}>Caption / Subtitle</p>
+              </div>
+              <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "rgba(194,154,91,0.1)", color: COLORS.gold }}>
+                {captionEdited.length} chars
+              </span>
+            </div>
+            <div className="p-4">
+              <textarea
+                value={captionEdited}
+                onChange={(e) => setCaptionEdited(e.target.value)}
+                rows={4}
+                className="w-full text-[11px] leading-relaxed resize-none border-0 outline-none"
+                style={{ color: COLORS.textDark, backgroundColor: "transparent" }}
+              />
+            </div>
+          </div>
+
+          {/* ═══ EXPORT HISTORY ═══ */}
+          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: COLORS.borderLight }}>
+              <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.textMid }}>Export history</p>
+              <button className="text-[9px] font-medium transition-colors hover:underline" style={{ color: COLORS.blue }}>View all</button>
+            </div>
+            <div className="divide-y" style={{ borderColor: COLORS.borderLight }}>
+              {EXPORT_HISTORY.map((exp) => (
+                <div key={exp.format} className="flex items-center gap-3 px-4 py-2.5" style={{ borderColor: COLORS.borderLight }}>
+                  <div
+                    className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: exp.status === "ready" ? "rgba(34,160,107,0.08)" : "rgba(138,133,120,0.06)" }}
+                  >
+                    {exp.status === "ready" ? (
+                      <Check className="w-4 h-4" style={{ color: COLORS.green }} />
+                    ) : (
+                      <Clock className="w-4 h-4" style={{ color: COLORS.textMuted }} />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-semibold" style={{ color: COLORS.textDark }}>{exp.format}</p>
+                    <p className="text-[8px]" style={{ color: COLORS.textMuted }}>
+                      {exp.size} · {exp.time} · {exp.date}
+                    </p>
+                  </div>
+                  {exp.status === "ready" ? (
+                    <button className="flex items-center gap-1 text-[9px] font-medium px-2 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+                      <Download className="w-2.5 h-2.5" />
+                      Download
+                    </button>
+                  ) : (
+                    <button className="flex items-center gap-1 text-[9px] font-semibold px-2 py-1 rounded transition-opacity hover:opacity-90" style={{ backgroundColor: COLORS.gold, color: "#FFFFFF" }}>
+                      <Sparkles className="w-2.5 h-2.5" />
+                      Render now
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ═══ RIGHT SIDEBAR ═══ */}
+        <div className="space-y-4">
+          {/* Publish Checklist */}
+          <div className="rounded-xl border p-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.textMid }}>Publish checklist</p>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "rgba(34,160,107,0.08)", color: COLORS.green }}>
+                {doneCount}/{totalCount}
+              </span>
+            </div>
+            {/* Progress bar */}
+            <div className="h-1 rounded-full overflow-hidden mb-3" style={{ backgroundColor: COLORS.borderLight }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${(doneCount / totalCount) * 100}%`, backgroundColor: COLORS.green }} />
+            </div>
+            <div className="space-y-1.5">
+              {PUBLISH_CHECKLIST.map((item) => (
+                <div key={item.label} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {item.status === "done" ? (
+                      <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{ backgroundColor: COLORS.green }}>
+                        <Check className="w-2 h-2 text-white" />
+                      </div>
+                    ) : item.status === "review" ? (
+                      <div className="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center" style={{ borderColor: COLORS.gold }}>
+                        <div className="w-1 h-1 rounded-full" style={{ backgroundColor: COLORS.gold }} />
+                      </div>
+                    ) : (
+                      <div className="w-3.5 h-3.5 rounded-full border-2" style={{ borderColor: COLORS.border }} />
+                    )}
+                    <span className="text-[10px]" style={{
+                      color: item.status === "done" ? COLORS.textDark : item.status === "review" ? COLORS.gold : COLORS.textMuted,
+                    }}>
+                      {item.label}
+                    </span>
+                  </div>
+                  {item.status === "review" && (
+                    <button className="text-[8px] font-medium transition-colors hover:underline" style={{ color: COLORS.blue }}>Review</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Thumbnail Selector */}
+          <div className="rounded-xl border p-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-2" style={{ color: COLORS.textMid }}>Thumbnail</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[1, 2, 3].map((t) => (
+                <button
+                  key={t}
+                  className="relative aspect-video rounded-md flex items-center justify-center text-[8px] font-bold transition-all"
+                  style={{
+                    background: `linear-gradient(135deg, ${COLORS.navy}10, ${COLORS.gold}06)`,
+                    border: t === 1 ? `1.5px solid ${COLORS.gold}` : `1px solid ${COLORS.borderLight}`,
+                  }}
+                >
+                  <span style={{ color: COLORS.textMuted }}>0{t}</span>
+                  {t === 1 && (
+                    <div className="absolute top-0.5 right-0.5">
+                      <Check className="w-2.5 h-2.5" style={{ color: COLORS.green }} />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+            <button className="w-full flex items-center justify-center gap-1 text-[9px] font-medium px-2 py-1.5 rounded-lg border transition-colors hover:bg-black/5 mt-2" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+              <PlusIcon className="w-2.5 h-2.5" />
+              Upload custom
+            </button>
+          </div>
+
+          {/* Delivery Targets */}
+          <div className="rounded-xl border p-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-2" style={{ color: COLORS.textMid }}>Delivery targets</p>
+            <div className="space-y-2">
+              {[
+                { icon: FileText, label: "LinkedIn", sub: "Post + video", status: "ready" as const },
+                { icon: FilmIcon, label: "YouTube Shorts", sub: "9:16 video", status: "ready" as const },
+                { icon: Clapperboard, label: "Instagram Reels", sub: "9:16 video", status: "optional" as const },
+              ].map((target) => {
+                const Icon = target.icon
+                return (
+                  <div key={target.label} className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "rgba(138,133,120,0.04)" }}>
+                      <Icon className="w-3 h-3" style={{ color: COLORS.textMid }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-semibold" style={{ color: COLORS.textDark }}>{target.label}</p>
+                      <p className="text-[8px]" style={{ color: COLORS.textMuted }}>{target.sub}</p>
+                    </div>
+                    {target.status === "ready" ? (
+                      <Check className="w-3 h-3" style={{ color: COLORS.green }} />
+                    ) : (
+                      <span className="text-[7px] font-medium px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(138,133,120,0.06)", color: COLORS.textMuted }}>Optional</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Ready to Publish */}
+          <div className="rounded-xl border p-4" style={{ backgroundColor: "rgba(194,154,91,0.05)", borderColor: "rgba(194,154,91,0.2)" }}>
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles className="w-4 h-4" style={{ color: COLORS.gold }} />
+              <p className="font-serif text-sm" style={{ color: COLORS.textDark }}>Ready to publish</p>
+            </div>
+            <p className="text-[10px] mb-3" style={{ color: COLORS.textMid }}>
+              {doneCount === totalCount
+                ? "All checks passed. This package is cleared for delivery."
+                : `${totalCount - doneCount} items need review before publishing.`}
+            </p>
+            <div className="space-y-2">
+              <button
+                className="flex items-center justify-center gap-1.5 w-full text-[11px] font-semibold px-3 py-2 rounded-lg transition-opacity hover:opacity-90"
+                style={{ backgroundColor: COLORS.navy, color: "#FFFFFF" }}
+              >
+                <Send className="w-3 h-3" style={{ color: COLORS.gold }} />
+                Publish to LinkedIn
+                <ArrowRight className="w-3 h-3" />
+              </button>
+              <button className="flex items-center justify-center gap-1.5 w-full text-[11px] font-medium px-3 py-2 rounded-lg border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+                <Download className="w-3 h-3" />
+                Download package
+              </button>
+              <button className="flex items-center justify-center gap-1.5 w-full text-[11px] font-medium transition-colors hover:underline" style={{ color: COLORS.textMuted }}>
+                Save as draft
+              </button>
+            </div>
+          </div>
+
+          {/* Production Summary */}
+          <ProductionSummaryCard production={production} />
+        </div>
+      </div>
     </div>
   )
 }
