@@ -2714,35 +2714,14 @@ function TakeStatusBadge({ status }: { status: "approved" | "review" | "rejected
 // EDIT TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const EDIT_SCENE_ASSETS = [
-  { idx: 1, title: "The Catch", start: "0:00", end: "0:05", status: "ready" as const },
-  { idx: 2, title: "The Reveal", start: "0:05", end: "0:10", status: "ready" as const },
-  { idx: 3, title: "The Marble", start: "0:10", end: "0:15", status: "ready" as const },
-  { idx: 4, title: "The Descent", start: "0:15", end: "0:25", status: "ready" as const },
-  { idx: 5, title: "The Turn", start: "0:25", end: "0:30", status: "ready" as const },
-  { idx: 6, title: "The Settle", start: "0:30", end: "0:35", status: "ready" as const },
-]
-
-const SFX_CHIPS = ["Footsteps", "Door Creak", "Metal Turn", "Room Tone"]
-const TITLE_CHIPS = [
-  "The cup slides.",
-  "Pull back.",
-  "The first answer…",
-  "Go beneath the surface.",
-  "Find the one turn.",
-  "Movement is not always progress.",
-]
-
-const VERSION_HISTORY = [
-  { ver: "V3", date: "Today, 2:41 PM", author: "Tai", current: true },
-  { ver: "V2", date: "Today, 11:32 AM", author: "Tai", current: false },
-  { ver: "V1", date: "Yesterday, 9:18 PM", author: "Tai", current: false },
-]
+// EditTab scene assets + title chips are derived from production.film.shots at render time
+const SFX_CHIPS = ["Room Tone", "Ambient", "Foley", "Score"]
 
 const SPEED_OPTIONS = ["0.5x", "0.75x", "1x", "1.25x", "1.5x", "2x"]
 
 function EditTab({ production, onTabChange }: { production: Production; onTabChange: (t: TabKey) => void }) {
-  const [selectedClip, setSelectedClip] = useState(4) // Scene 04 selected by default
+  const editShots = production.film.shots.slice(0, 6)
+  const [selectedClip, setSelectedClip] = useState(0)
   const [snapEnabled, setSnapEnabled] = useState(true)
   const [colorEnabled, setColorEnabled] = useState(true)
   const [speed, setSpeed] = useState("1x")
@@ -2798,12 +2777,14 @@ function EditTab({ production, onTabChange }: { production: Production; onTabCha
           </div>
           {/* Scene list */}
           <div className="max-h-[420px] overflow-y-auto">
-            {EDIT_SCENE_ASSETS.map((asset) => {
-              const isSelected = selectedClip === asset.idx
+            {editShots.map((shot, i) => {
+              const isSelected = selectedClip === i
+              const start = formatTimecode(editShots.slice(0, i).reduce((s, x) => s + x.durationSec, 0))
+              const end = formatTimecode(editShots.slice(0, i + 1).reduce((s, x) => s + x.durationSec, 0))
               return (
                 <button
-                  key={asset.idx}
-                  onClick={() => setSelectedClip(asset.idx)}
+                  key={shot.no}
+                  onClick={() => setSelectedClip(i)}
                   className="w-full flex items-center gap-2 px-2 py-2 border-b last:border-0 text-left transition-colors hover:bg-black/[0.015]"
                   style={{
                     borderColor: COLORS.borderLight,
@@ -2818,13 +2799,13 @@ function EditTab({ production, onTabChange }: { production: Production; onTabCha
                       border: isSelected ? `1px solid ${COLORS.gold}` : "none",
                     }}
                   >
-                    {String(asset.idx).padStart(2, "0")}
+                    {String(i + 1).padStart(2, "0")}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-semibold truncate" style={{ color: COLORS.textDark }}>{asset.title}</p>
-                    <p className="text-[8px]" style={{ color: COLORS.textMuted }}>{asset.start} – {asset.end}</p>
+                    <p className="text-[10px] font-semibold truncate" style={{ color: COLORS.textDark }}>{deriveSceneName(shot, i)}</p>
+                    <p className="text-[8px]" style={{ color: COLORS.textMuted }}>{start} – {end}</p>
                   </div>
-                  <Check className="w-3 h-3 flex-shrink-0" style={{ color: COLORS.green }} />
+                  {shot.motionStatus === "rendered" && <Check className="w-3 h-3 flex-shrink-0" style={{ color: COLORS.green }} />}
                 </button>
               )
             })}
@@ -2868,7 +2849,7 @@ function EditTab({ production, onTabChange }: { production: Production; onTabCha
                   <span className="text-[9px] font-bold text-white/80">{String(selectedClip).padStart(2, "0")}</span>
                   <span className="text-[9px] text-white/50">·</span>
                   <span className="text-[9px] text-white/60">
-                    {EDIT_SCENE_ASSETS[selectedClip - 1]?.title || ""}
+                    {editShots[selectedClip] ? deriveSceneName(editShots[selectedClip], selectedClip) : ""}
                   </span>
                 </div>
               </div>
@@ -2914,12 +2895,12 @@ function EditTab({ production, onTabChange }: { production: Production; onTabCha
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
               <div className="flex items-center gap-0.5 overflow-x-auto">
-                {EDIT_SCENE_ASSETS.map((asset, i) => {
-                  const isSelected = selectedClip === asset.idx
+                {editShots.map((shot, i) => {
+                  const isSelected = selectedClip === i
                   return (
-                    <div key={asset.idx} className="flex items-center gap-0.5 flex-shrink-0">
+                    <div key={shot.no} className="flex items-center gap-0.5 flex-shrink-0">
                       <button
-                        onClick={() => setSelectedClip(asset.idx)}
+                        onClick={() => setSelectedClip(i)}
                         className="relative w-12 h-8 rounded flex items-center justify-center text-[8px] font-bold transition-all"
                         style={{
                           backgroundColor: isSelected ? "rgba(194,154,91,0.2)" : "rgba(255,255,255,0.05)",
@@ -2927,9 +2908,9 @@ function EditTab({ production, onTabChange }: { production: Production; onTabCha
                           color: isSelected ? COLORS.gold : "rgba(255,255,255,0.4)",
                         }}
                       >
-                        {String(asset.idx).padStart(2, "0")}
+                        {String(i + 1).padStart(2, "0")}
                       </button>
-                      {i < EDIT_SCENE_ASSETS.length - 1 && (
+                      {i < editShots.length - 1 && (
                         <ScissorsIcon className="w-2 h-2 text-white/15" />
                       )}
                     </div>
@@ -3005,13 +2986,14 @@ function EditTab({ production, onTabChange }: { production: Production; onTabCha
             {/* Video Track */}
             <TimelineTrack icon={FilmIcon} label="Video" color={COLORS.navy}>
               <div className="flex items-center gap-0.5 h-full px-1">
-                {EDIT_SCENE_ASSETS.map((asset, i) => {
-                  const widthPct = asset.idx === 4 ? 28 : (asset.idx === 3 ? 14 : 10)
-                  const isSelected = selectedClip === asset.idx
+                {editShots.map((shot, i) => {
+                  const totalDur = editShots.reduce((s, x) => s + x.durationSec, 0) || 1
+                  const widthPct = Math.round((shot.durationSec / totalDur) * 100)
+                  const isSelected = selectedClip === i
                   return (
-                    <div key={asset.idx} className="flex items-center gap-0.5" style={{ width: `${widthPct}%` }}>
+                    <div key={shot.no} className="flex items-center gap-0.5" style={{ width: `${widthPct}%` }}>
                       <button
-                        onClick={() => setSelectedClip(asset.idx)}
+                        onClick={() => setSelectedClip(i)}
                         className="flex-1 h-7 rounded flex items-center justify-center text-[7px] font-bold transition-all"
                         style={{
                           backgroundColor: isSelected ? "rgba(194,154,91,0.15)" : "rgba(26,35,50,0.06)",
@@ -3019,9 +3001,9 @@ function EditTab({ production, onTabChange }: { production: Production; onTabCha
                           color: isSelected ? COLORS.gold : COLORS.textMid,
                         }}
                       >
-                        {String(asset.idx).padStart(2, "0")}
+                        {String(i + 1).padStart(2, "0")}
                       </button>
-                      {i < EDIT_SCENE_ASSETS.length - 1 && <ScissorsIcon className="w-2 h-2 flex-shrink-0" style={{ color: COLORS.border }} />}
+                      {i < editShots.length - 1 && <ScissorsIcon className="w-2 h-2 flex-shrink-0" style={{ color: COLORS.border }} />}
                     </div>
                   )
                 })}
@@ -3080,17 +3062,17 @@ function EditTab({ production, onTabChange }: { production: Production; onTabCha
             {/* Text/Titles Track */}
             <TimelineTrack icon={TypeIcon} label="Text / Titles" color={COLORS.textMid}>
               <div className="flex items-center gap-0.5 h-full px-1">
-                {TITLE_CHIPS.map((title, i) => (
+                {editShots.map((shot, i) => (
                   <div
                     key={i}
                     className="text-[7px] font-medium px-1.5 py-0.5 rounded truncate"
                     style={{
                       backgroundColor: "rgba(138,133,120,0.06)",
                       color: COLORS.textMid,
-                      maxWidth: i === 2 ? "16%" : i === 5 ? "18%" : "12%",
+                      maxWidth: "16%",
                     }}
                   >
-                    {title}
+                    {deriveNarrationLine(shot).split(" ").slice(0, 3).join(" ")}
                   </div>
                 ))}
               </div>
@@ -3230,28 +3212,28 @@ function EditTab({ production, onTabChange }: { production: Production; onTabCha
           <div className="rounded-xl border p-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
             <p className="text-[9px] font-bold tracking-[0.12em] uppercase mb-2" style={{ color: COLORS.textMid }}>Versions</p>
             <p className="text-[8px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: COLORS.textMuted }}>Current version</p>
-            {VERSION_HISTORY.filter(v => v.current).map((v) => (
-              <div key={v.ver} className="flex items-center gap-2 px-1.5 py-1.5 rounded mb-2" style={{ backgroundColor: "rgba(194,154,91,0.06)" }}>
-                <span className="text-[9px] font-bold" style={{ color: COLORS.gold }}>{v.ver}</span>
+            <div className="flex items-center gap-2 px-1.5 py-1.5 rounded mb-2" style={{ backgroundColor: "rgba(194,154,91,0.06)" }}>
+              <span className="text-[9px] font-bold" style={{ color: COLORS.gold }}>V1</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[8px]" style={{ color: COLORS.textDark }}>
+                  {production.updatedAt ? new Date(production.updatedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "In progress"}
+                </p>
+                <p className="text-[7px]" style={{ color: COLORS.textMuted }}>Tai</p>
+              </div>
+              <MoreHorizontal className="w-2.5 h-2.5" style={{ color: COLORS.textMuted }} />
+            </div>
+            <p className="text-[8px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: COLORS.textMuted }}>Other versions</p>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 px-1.5 py-1 rounded transition-colors hover:bg-black/[0.02]">
+                <span className="text-[9px] font-bold" style={{ color: COLORS.textMuted }}>Draft</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[8px]" style={{ color: COLORS.textDark }}>{v.date}</p>
-                  <p className="text-[7px]" style={{ color: COLORS.textMuted }}>{v.author}</p>
+                  <p className="text-[8px]" style={{ color: COLORS.textMid }}>
+                    {production.createdAt ? new Date(production.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""}
+                  </p>
+                  <p className="text-[7px]" style={{ color: COLORS.textMuted }}>Original import</p>
                 </div>
                 <MoreHorizontal className="w-2.5 h-2.5" style={{ color: COLORS.textMuted }} />
               </div>
-            ))}
-            <p className="text-[8px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: COLORS.textMuted }}>Other versions</p>
-            <div className="space-y-1">
-              {VERSION_HISTORY.filter(v => !v.current).map((v) => (
-                <div key={v.ver} className="flex items-center gap-2 px-1.5 py-1 rounded transition-colors hover:bg-black/[0.02]">
-                  <span className="text-[9px] font-bold" style={{ color: COLORS.textMuted }}>{v.ver}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[8px]" style={{ color: COLORS.textMid }}>{v.date}</p>
-                    <p className="text-[7px]" style={{ color: COLORS.textMuted }}>{v.author}</p>
-                  </div>
-                  <MoreHorizontal className="w-2.5 h-2.5" style={{ color: COLORS.textMuted }} />
-                </div>
-              ))}
             </div>
             <button className="w-full flex items-center justify-center gap-1 text-[9px] font-medium px-2 py-1.5 rounded-lg border transition-colors hover:bg-black/5 mt-2" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
               <GitCompare className="w-2.5 h-2.5" />
@@ -3425,16 +3407,7 @@ function NumberField({ label, value }: { label: string; value: string }) {
 // PACKAGE TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const PUBLISH_CHECKLIST = [
-  { label: "Concept approved", status: "done" as const },
-  { label: "Script approved", status: "done" as const },
-  { label: "Frames approved", status: "done" as const },
-  { label: "Scenes generated", status: "done" as const },
-  { label: "Edit assembled", status: "done" as const },
-  { label: "Caption reviewed", status: "review" as const },
-  { label: "Thumbnail selected", status: "review" as const },
-  { label: "Final render exported", status: "pending" as const },
-]
+// Publish checklist is derived from real gate states inside PackageTab
 
 const FORMAT_PREVIEWS = [
   {
@@ -3460,10 +3433,7 @@ const FORMAT_PREVIEWS = [
   },
 ]
 
-const HASHTAGS = [
-  "#TrustTai", "#Leadership", "#SystemsThinking", "#FounderLife",
-  "#VisualParable", "#CinematicStorytelling", "#TheManWhoCarriedACity",
-]
+// HASHTAGS derived from production topic inside PackageTab
 
 const EXPORT_HISTORY = [
   { format: "9:16 Vertical", size: "198 MB", time: "2m 40s", date: "Today, 3:15 PM", status: "ready" as const },
@@ -3476,8 +3446,21 @@ function PackageTab({ production, onTabChange: _onTabChange }: { production: Pro
   const [selectedFormat, setSelectedFormat] = useState("9:16")
   const [postEdited, setPostEdited] = useState(pkg.linkedinPost)
   const [captionEdited, setCaptionEdited] = useState(pkg.caption)
-  const doneCount = PUBLISH_CHECKLIST.filter(c => c.status === "done").length
-  const totalCount = PUBLISH_CHECKLIST.length
+
+  // Derive checklist from real gate states
+  const g = production.gates
+  const allScenesRendered = production.film.shots.slice(0, 6).every(s => s.motionStatus === "rendered")
+  const publishChecklist = [
+    { label: "Concept approved", status: g.concept?.status === "approved" ? "done" as const : "pending" as const },
+    { label: "Script approved", status: g.keyframes?.status === "approved" ? "done" as const : "pending" as const },
+    { label: "Frames approved", status: g.keyframes?.status === "approved" ? "done" as const : "pending" as const },
+    { label: "Scenes generated", status: allScenesRendered ? "done" as const : g.film?.status === "approved" ? "review" as const : "pending" as const },
+    { label: "Post approved", status: g.post?.status === "approved" ? "done" as const : "review" as const },
+    { label: "Caption reviewed", status: captionEdited.length > 10 ? "review" as const : "pending" as const },
+    { label: "Final film approved", status: g.film?.status === "approved" ? "done" as const : "pending" as const },
+  ]
+  const doneCount = publishChecklist.filter(c => c.status === "done").length
+  const totalCount = publishChecklist.length
 
   return (
     <div className="pt-6">
@@ -3600,12 +3583,11 @@ function PackageTab({ production, onTabChange: _onTabChange }: { production: Pro
               />
               <div className="flex items-center justify-between mt-2 pt-2 border-t" style={{ borderColor: COLORS.borderLight }}>
                 <div className="flex items-center gap-1.5">
-                  {HASHTAGS.slice(0, 4).map((tag) => (
+                  {(["#TrustTai", "#Founder", `#${production.spine?.rememberSentence?.split(" ").slice(0, 2).map(w => w.replace(/[^a-zA-Z]/g, "")).join("") || "Leadership"}`]).map((tag) => (
                     <span key={tag} className="text-[8px] font-medium px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(47,98,216,0.06)", color: COLORS.blue }}>
                       {tag}
                     </span>
                   ))}
-                  <span className="text-[8px]" style={{ color: COLORS.textMuted }}>+{HASHTAGS.length - 4} more</span>
                 </div>
                 <button className="flex items-center gap-1 text-[9px] font-medium transition-colors hover:underline" style={{ color: COLORS.blue }}>
                   <PenLine className="w-2.5 h-2.5" />
@@ -3694,7 +3676,7 @@ function PackageTab({ production, onTabChange: _onTabChange }: { production: Pro
               <div className="h-full rounded-full transition-all" style={{ width: `${(doneCount / totalCount) * 100}%`, backgroundColor: COLORS.green }} />
             </div>
             <div className="space-y-1.5">
-              {PUBLISH_CHECKLIST.map((item) => (
+              {publishChecklist.map((item) => (
                 <div key={item.label} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {item.status === "done" ? (
@@ -3825,27 +3807,14 @@ function PackageTab({ production, onTabChange: _onTabChange }: { production: Pro
 
 type PostView = "original" | "studio" | "approved" | "history"
 
-const POST_INTELLIGENCE = [
-  { label: "Central argument", value: "Systems that run on Tai's laptop aren't systems — they're dependencies waiting to break." },
-  { label: "Reader before", value: "Relying on clever hacks that work 'for now'" },
-  { label: "Reader after", value: "Thinking in durable architecture — cloud-first, failure-tolerant" },
-  { label: "Emotional movement", value: "Anxiety → clarity → resolve" },
-  { label: "Claims to protect", value: "Dependency is a hidden cost. Cloud-first is a design choice, not an upgrade." },
-  { label: "Voice alignment", value: "Direct, systems-thinking, no softening. The founding sentence lands hard." },
-]
-
-const POST_HISTORY = [
-  { version: "v3 — Studio revision", date: "Today, 2:14 PM", note: "Tightened opening, removed hedge in third paragraph" },
-  { version: "v2 — Studio revision", date: "Today, 11:50 AM", note: "Restructured for clarity on emotional arc" },
-  { version: "v1 — Original", date: "Today, 10:07 AM", note: "Source post as imported" },
-]
-
 function PostTab({ production, onTabChange }: { production: Production; onTabChange: (t: TabKey) => void }) {
+  // Post text seeds from the production's actual source thought / assembled argument
+  const pkg = buildPackage(production)
+  const sourceText = production.sourceThought?.trim() || pkg.linkedinPost
+
   const [view, setView] = useState<PostView>("original")
   const [editing, setEditing] = useState(false)
-  const [postText, setPostText] = useState(
-    `There is a moment in every founder's journey where a system they built — designed to run without them — starts to require them.\n\nThe scraper that needs a restart. The pipeline that only works from your machine. The cron job tied to your laptop's Wi-Fi.\n\nThis is not a technical problem. It is an architectural one.\n\nCloud-first is not an upgrade. It is a design principle. And every time we skip it, we pay in the form of fragility dressed up as "working."\n\nThe cost isn't always visible. It hides in the 2am restart. The deal delayed because the system was down. The client who noticed before you did.\n\nBuild for absence. Design as if you are not there. That is the only honest architecture.`
-  )
+  const [postText, setPostText] = useState(sourceText)
   const [approved, setApproved] = useState(false)
   const [showImpact, setShowImpact] = useState(false)
 
@@ -3898,7 +3867,9 @@ function PostTab({ production, onTabChange }: { production: Production; onTabCha
           {view === "history" ? (
             <div className="rounded-xl border p-4 space-y-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
               <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.textMid }}>Edit history</p>
-              {POST_HISTORY.map((h) => (
+              {[
+                { version: "v1 — Original", date: production.createdAt ? new Date(production.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "", note: "Source post as imported" },
+              ].map((h) => (
                 <div key={h.version} className="flex items-start gap-3 py-3 border-t" style={{ borderColor: COLORS.borderLight }}>
                   <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: `${COLORS.navy}08` }}>
                     <History className="w-3 h-3" style={{ color: COLORS.textMid }} />
@@ -3996,7 +3967,13 @@ function PostTab({ production, onTabChange }: { production: Production; onTabCha
               <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.textMid }}>Post Intelligence</p>
             </div>
             <div className="space-y-3">
-              {POST_INTELLIGENCE.map((item) => (
+              {([
+                { label: "Central argument", value: production.spine?.deeperTruth || production.title },
+                { label: "Reader before", value: production.shift?.beginning || "Reacting to the surface" },
+                { label: "Reader after", value: production.shift?.end || "Understanding the system beneath" },
+                { label: "Remember sentence", value: production.spine?.rememberSentence || "" },
+                { label: "Voice alignment", value: "Direct, systems-thinking, no softening." },
+              ] as { label: string; value: string }[]).map((item) => (
                 <div key={item.label} className="space-y-1">
                   <p className="text-[9px] font-semibold tracking-[0.08em] uppercase" style={{ color: COLORS.textMuted }}>{item.label}</p>
                   <p className="text-[11px] leading-snug" style={{ color: COLORS.textDark }}>{item.value}</p>
