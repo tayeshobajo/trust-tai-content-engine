@@ -30,13 +30,18 @@ import {
   type SceneOrchestration,
 } from "@/lib/world-bible"
 
-const WORLD_BIBLE_CONTEXT = `Production: "The Man Who Carried a City" — Canon Scene 003.
+function buildWorldBibleContext(production: Production): string {
+  const selectedConcept =
+    production.film.concepts.find((concept) => concept.key === production.film.selectedConcept) ??
+    production.film.concepts[0]
+  const contextParts = [
+    production.title ? `Production: "${production.title}".` : "",
+    production.spine.rememberSentence ? `Core truth: ${production.spine.rememberSentence}` : "",
+    selectedConcept?.premise ? `Concept premise: ${selectedConcept.premise}` : "",
+  ]
 
-World context: A civilization where the weight of responsibility, memory, and unseen systems takes physical form. Two architects build bridges in the same city — one anchors every bridge to himself, the other builds bridges that never touch her. The world is retrofuturist: brass instruments, glowing transit lines, carved stone, floating stones, elevated viaducts, market commerce. Black characters are foundational, not applied. Technology is handmade analog — no digital screens.
-
-Active symbols this production: case/container (city as responsibility made visible), living road (intention and dependency made legible), brass (knowledge shaped by hands), light (recognition), height (perspective).
-
-Active world laws: Law 1 (inner realities acquire physical form), Law 3 (every person carries a world), Law 5 (weight contains information).`
+  return contextParts.filter(Boolean).join("\n\n")
+}
 
 type ShotState = Record<number, {
   loading?: boolean
@@ -322,7 +327,7 @@ function RenderWorkspace() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shotDescription: shot.description,
-          worldBibleContext: WORLD_BIBLE_CONTEXT,
+          worldBibleContext: buildWorldBibleContext(production),
           shotNumber: shot.no,
           totalShots: production.film.shots.length,
           productionId: production.id,

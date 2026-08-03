@@ -61,17 +61,12 @@ function buildCalendarGrid(year: number, month: number): CalendarDay[] {
     });
   }
 
-  // Handle Jun 30 (prev month relative to July 2026 grid)
-  // Jun 30 key lives in prev month row — attach posts there
-  const jun30Key = "2026-06-30";
-  const jun30Posts = calendarPosts[jun30Key] ?? [];
-  if (jun30Posts.length > 0) {
-    const jun30Cell = grid.find(
-      (c) => c.month === "prev" && c.date === 30
-    );
-    if (jun30Cell) {
-      jun30Cell.posts = jun30Posts;
-    }
+  // Attach previous-month posts to the leading filler cells for the active view.
+  for (const cell of grid) {
+    if (cell.month !== "prev" || cell.date === null) continue;
+    const prevMonthDate = new Date(year, month - 1, cell.date);
+    const prevMonthKey = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}-${String(prevMonthDate.getDate()).padStart(2, "0")}`;
+    cell.posts = calendarPosts[prevMonthKey] ?? cell.posts;
   }
 
   // Next month fill to complete rows
@@ -283,5 +278,3 @@ export default function CalendarPage() {
     </Shell>
   );
 }
-
-

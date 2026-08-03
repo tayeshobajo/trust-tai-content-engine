@@ -20,6 +20,10 @@ import {
   Search,
   Bell,
   X,
+  FileText,
+  GitCompare,
+  ScanLine,
+  Activity,
 } from "lucide-react";
 
 interface NavItem {
@@ -38,7 +42,11 @@ const navItems: NavItem[] = [
   { label: "Characters", href: "/characters", icon: Users },
   { label: "Places", href: "/places", icon: MapPin },
   { label: "Props", href: "/props", icon: Package },
+  { label: "Scripts", href: "/scripts", icon: FileText },
   { label: "Memory", href: "/memory", icon: Brain },
+  { label: "Frame QA", href: "/frame-qa", icon: ScanLine },
+  { label: "Continuity", href: "/continuity", icon: GitCompare },
+  { label: "Operations", href: "/operations", icon: Activity },
   { label: "QA", href: "/qa", icon: ShieldCheck },
   { label: "Signals", href: "/signals", icon: TrendingUp },
 ];

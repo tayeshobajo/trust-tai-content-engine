@@ -10,7 +10,7 @@
  * QA coverage: Section 10 (Keyframe Generation Readiness)
  */
 
-import type { Shot, CameraAngle, ShotSize, LensIntention, FrameGenerationMeta } from "@/data/studio"
+import type { Shot, FrameGenerationMeta } from "@/data/studio"
 
 // ─── Model Capability Registry ────────────────────────────────────────────────
 
