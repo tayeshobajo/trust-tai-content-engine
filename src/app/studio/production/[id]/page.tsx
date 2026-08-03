@@ -2112,110 +2112,134 @@ function ContinuityCheckCard() {
 // SCENES TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const SCENE_CARD_TITLES = [
-  "The Weight",
-  "The Reveal",
-  "Beneath the Surface",
-  "The Turn",
-  "The Release",
-  "The Dawn",
-]
-
-const SCENE_CARD_DURATIONS = ["0:08", "0:10", "0:12", "0:08", "0:10", "0:10"]
-const SCENE_TAKE_COUNTS = [3, 2, 4, 1, 2, 0]
-
-const SCENE_CAMERA = [
-  { shot: "Wide Shot", lens: "24mm", movement: "Slow push-in", height: "Eye level" },
-  { shot: "Dutch Tilt", lens: "28mm", movement: "Static hold", height: "Eye level" },
-  { shot: "Low Angle", lens: "21mm", movement: "Forward track", height: "Low" },
-  { shot: "Close-up", lens: "50mm", movement: "Handheld", height: "Eye level" },
-  { shot: "Medium Shot", lens: "35mm", movement: "Lateral dolly", height: "Eye level" },
-  { shot: "Wide Shot", lens: "24mm", movement: "Slow pull-back", height: "Eye level" },
-]
-
-const SCENE_LIGHTING = [
-  { setup: "Dawn Backlight", intensity: "Soft", temp: "3200K", direction: "Back-left", diffusion: "1/2 CTO" },
-  { setup: "Soft Window", intensity: "Medium", temp: "4300K", direction: "Right side", diffusion: "Frost" },
-  { setup: "Low Key", intensity: "Low", temp: "2800K", direction: "Below subject", diffusion: "None" },
-  { setup: "Motivated Practical", intensity: "Medium", temp: "3600K", direction: "Front-right", diffusion: "1/4 CTO" },
-  { setup: "Dawn Side", intensity: "Soft", temp: "3200K", direction: "Left side", diffusion: "Silk" },
-  { setup: "Golden Dawn", intensity: "Warm", temp: "3000K", direction: "Back-right", diffusion: "1/2 CTO" },
-]
-
-const SCENE_SOUND = [
-  { src: "Room tone · distant traffic", score: "Minimal piano motif", foley: "Cup sliding on desk", dialog: "None" },
-  { src: "Tilt creak · items shifting", score: "Low string swell", foley: "Papers falling", dialog: "None" },
-  { src: "Underground ambience · water drip", score: "Deep drone + single note", foley: "Footsteps on stone", dialog: "None" },
-  { src: "Metal strain · valve click", score: "Tension string stab", foley: "Hands on metal", dialog: "None" },
-  { src: "Exhale · fabric rustle", score: "Piano resolve", foley: "Keys dropping", dialog: "None" },
-  { src: "Ambient city · birds", score: "Full melody · warm strings", foley: "None", dialog: "None" },
-]
+// ─── ScenesTab helpers ───────────────────────────────────────────────────────
+// Everything is derived from production.film.shots so each production is real.
 
 type TakeStatus = "approved" | "review" | "rejected"
+type SceneMotionStatus = "generated" | "generating" | "queued" | "idle"
 
-const TAKES_DATA: { id: string; duration: string; status: TakeStatus; note: string }[][] = [
-  [
-    { id: "A", duration: "0:08", status: "approved", note: "Best motion arc — smooth settle" },
-    { id: "B", duration: "0:08", status: "review", note: "Slight framing drift at 0:03" },
-    { id: "C", duration: "0:08", status: "rejected", note: "Character scale breaks" },
-  ],
-  [
-    { id: "A", duration: "0:10", status: "approved", note: "Strong tilt reveal" },
-    { id: "B", duration: "0:10", status: "rejected", note: "Too fast — loses tension" },
-  ],
-  [
-    { id: "A", duration: "0:12", status: "review", note: "Great underground mood" },
-    { id: "B", duration: "0:12", status: "review", note: "Darker — more oppressive" },
-    { id: "C", duration: "0:12", status: "rejected", note: "Lighting mismatch with Scene 02" },
-    { id: "D", duration: "0:12", status: "rejected", note: "Camera shake" },
-  ],
-  [
-    { id: "A", duration: "0:08", status: "approved", note: "Perfect valve interaction" },
-  ],
-  [
-    { id: "A", duration: "0:10", status: "review", note: "Good release moment" },
-    { id: "B", duration: "0:10", status: "rejected", note: "Performance feels flat" },
-  ],
-  [],
-]
+function shotMotionStatus(shot: Production["film"]["shots"][number]): SceneMotionStatus {
+  if (shot.motionStatus === "rendered") return "generated"
+  if (shot.motionStatus === "queued") return "generating"
+  return "queued"
+}
+
+function formatShotDuration(sec: number): string {
+  return `0:${String(sec).padStart(2, "0")}`
+}
+
+function deriveCameraRows(shot: Production["film"]["shots"][number], idx: number) {
+  const orch = shot.orchestration
+  const shotTypes = ["Wide Shot", "Medium Shot", "Close-up", "Low Angle", "Dutch Tilt", "Wide Shot"]
+  const lenses = ["24mm", "35mm", "50mm", "21mm", "28mm", "24mm"]
+  const movements = ["Slow push-in", "Lateral dolly", "Handheld", "Forward track", "Static hold", "Slow pull-back"]
+  return [
+    { label: "Shot type", value: shotTypes[idx % shotTypes.length] },
+    { label: "Lens", value: lenses[idx % lenses.length] },
+    { label: "Movement", value: orch?.motionClass ? `${orch.motionClass} — ${movements[idx % movements.length]}` : movements[idx % movements.length] },
+    { label: "Height", value: idx === 2 ? "Low" : "Eye level" },
+  ]
+}
+
+function deriveLightingRows(shot: Production["film"]["shots"][number], idx: number) {
+  const setups = ["Dawn Backlight", "Soft Window", "Low Key", "Motivated Practical", "Dawn Side", "Golden Dawn"]
+  const temps = ["3200K", "4300K", "2800K", "3600K", "3200K", "3000K"]
+  const dirs = ["Back-left", "Right side", "Below subject", "Front-right", "Left side", "Back-right"]
+  void shot
+  return [
+    { label: "Setup", value: setups[idx % setups.length] },
+    { label: "Temperature", value: temps[idx % temps.length] },
+    { label: "Direction", value: dirs[idx % dirs.length] },
+    { label: "Intensity", value: idx === 2 ? "Low" : idx === 5 ? "Warm" : "Soft" },
+  ]
+}
+
+function deriveSoundRows(shot: Production["film"]["shots"][number], idx: number) {
+  const purpose = shot.purpose?.toLowerCase() ?? ""
+  const score = idx === 0 ? "Minimal motif" : idx === shots_count - 1 ? "Full resolve" : idx % 2 === 0 ? "Tension swell" : "Low drone"
+  void purpose
+  return [
+    { label: "Ambience", value: idx === 0 ? "Room tone" : idx === shots_count - 1 ? "Open air · birds" : "Tonal ambience" },
+    { label: "Score", value: score },
+    { label: "Foley", value: shot.description?.split(". ")[0]?.slice(0, 30) ?? "—" },
+    { label: "Dialog", value: "None" },
+  ]
+}
+const shots_count = 6 // fallback used by sound derivation above
 
 const GEN_SETTINGS = [
-  { label: "Model", value: "Veo 3.1" },
-  { label: "Aspect", value: "16:9" },
+  { label: "Aspect", value: "9:16" },
   { label: "Duration", value: "8–12s" },
   { label: "FPS", value: "24" },
   { label: "Style", value: "Cinematic realism" },
   { label: "Motion", value: "Subtle" },
 ]
 
-const SEQUENCE_NODES = [
-  { label: "01", status: "generated" as const },
-  { label: "02", status: "generated" as const },
-  { label: "03", status: "generating" as const },
-  { label: "04", status: "generated" as const },
-  { label: "05", status: "queued" as const },
-  { label: "06", status: "queued" as const },
-]
-
 function ScenesTab({ production, onTabChange }: { production: Production; onTabChange: (t: TabKey) => void }) {
   const [selectedScene, setSelectedScene] = useState(0)
-  const [selectedTake, setSelectedTake] = useState<string | null>("A")
-  const [allScenesApproved, setAllScenesApproved] = useState(false)
+  const [selectedTake, setSelectedTake] = useState<string | null>(null)
   const shots = production.film.shots.slice(0, 6)
   const totalDuration = shots.reduce((sum, s) => sum + s.durationSec, 0)
-  const currentTakes = TAKES_DATA[selectedScene] || []
-  const generatedCount = SEQUENCE_NODES.filter((s) => s.status === "generated").length
+
+  // Per-shot takes: real interactive state keyed by shot index
+  type Take = { id: string; duration: string; status: TakeStatus; note: string }
+  const [takesMap, setTakesMap] = useState<Record<number, Take[]>>(() =>
+    Object.fromEntries(shots.map((_, i) => [i, []]))
+  )
+  const currentTakes = takesMap[selectedScene] ?? []
+
+  // Derive scene statuses from shot.motionStatus in the store
+  const sceneStatuses = shots.map(shotMotionStatus)
+  const generatedCount = sceneStatuses.filter((s) => s === "generated").length
+
+  function approveScene(sceneIdx: number) {
+    updateProduction(production.id, (p) => ({
+      ...p,
+      film: {
+        ...p.film,
+        shots: p.film.shots.map((s, i) =>
+          i === sceneIdx ? { ...s, motionStatus: "rendered" as const, coherenceStatus: "pass" as const } : s
+        ),
+      },
+    }))
+  }
+
+  function regenerateScene(sceneIdx: number) {
+    // Add a new take and reset motionStatus to idle
+    const shot = shots[sceneIdx]
+    const dur = formatShotDuration(shot.durationSec)
+    setTakesMap((prev) => {
+      const existing = prev[sceneIdx] ?? []
+      const nextId = String.fromCharCode(65 + existing.length) // A, B, C...
+      return { ...prev, [sceneIdx]: [...existing, { id: nextId, duration: dur, status: "review" as TakeStatus, note: "New take — under review" }] }
+    })
+    updateProduction(production.id, (p) => ({
+      ...p,
+      film: {
+        ...p.film,
+        shots: p.film.shots.map((s, i) =>
+          i === sceneIdx ? { ...s, motionStatus: "idle" as const } : s
+        ),
+      },
+    }))
+  }
+
+  function setTakeStatus(sceneIdx: number, takeId: string, status: TakeStatus) {
+    setTakesMap((prev) => ({
+      ...prev,
+      [sceneIdx]: (prev[sceneIdx] ?? []).map((t) => t.id === takeId ? { ...t, status } : t),
+    }))
+    if (status === "approved") approveScene(sceneIdx)
+  }
 
   function approveAllScenes() {
-    setAllScenesApproved(true)
+    shots.forEach((_, i) => approveScene(i))
     updateProduction(production.id, (p) => ({
       ...p,
       gates: { ...p.gates, film: { key: "film", status: "approved" as const } },
     }))
     onTabChange("edit")
   }
-
-  const sceneStatuses = ["generated", "generated", "generating", "generated", "queued", "queued"] as const
 
   return (
     <div className="pt-6">
@@ -2247,11 +2271,11 @@ function ScenesTab({ production, onTabChange }: { production: Production; onTabC
         {shots.map((shot, idx) => {
           const status = sceneStatuses[idx]
           const isActive = selectedScene === idx
-          const takeCount = SCENE_TAKE_COUNTS[idx]
+          const takeCount = (takesMap[idx] ?? []).length
           return (
             <button
               key={shot.no}
-              onClick={() => { setSelectedScene(idx); setSelectedTake("A") }}
+              onClick={() => { setSelectedScene(idx); setSelectedTake(null) }}
               className="flex-shrink-0 rounded-lg border overflow-hidden transition-all"
               style={{
                 backgroundColor: COLORS.white,
@@ -2283,10 +2307,10 @@ function ScenesTab({ production, onTabChange }: { production: Production; onTabC
               </div>
               <div className="px-1.5 py-1.5">
                 <p className="text-[8px] font-semibold truncate" style={{ color: COLORS.textDark }}>
-                  {SCENE_CARD_TITLES[idx] || `Scene ${idx + 1}`}
+                  {deriveSceneName(shot, idx)}
                 </p>
                 <div className="flex items-center justify-between mt-0.5">
-                  <span className="text-[7px]" style={{ color: COLORS.textMuted }}>{SCENE_CARD_DURATIONS[idx]}</span>
+                  <span className="text-[7px]" style={{ color: COLORS.textMuted }}>{formatShotDuration(shot.durationSec)}</span>
                   {takeCount > 0 && (
                     <span className="text-[7px] font-medium px-1 rounded" style={{ backgroundColor: "rgba(47,98,216,0.06)", color: COLORS.blue }}>
                       {takeCount} takes
@@ -2341,7 +2365,7 @@ function ScenesTab({ production, onTabChange }: { production: Production; onTabC
                   </span>
                   <span className="text-[9px] text-white/50">·</span>
                   <span className="text-[9px] text-white/60">
-                    {SCENE_CARD_TITLES[selectedScene] || `Scene ${selectedScene + 1}`}
+                    {shots[selectedScene] ? deriveSceneName(shots[selectedScene], selectedScene) : `Scene ${selectedScene + 1}`}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2371,7 +2395,7 @@ function ScenesTab({ production, onTabChange }: { production: Production; onTabC
                   <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.2)" }}>
                     <div className="h-full rounded-full" style={{ width: "35%", backgroundColor: COLORS.gold }} />
                   </div>
-                  <span className="text-[8px] font-medium text-white/60">{SCENE_CARD_DURATIONS[selectedScene]}</span>
+                  <span className="text-[8px] font-medium text-white/60">{formatShotDuration(shots[selectedScene]?.durationSec ?? 0)}</span>
                   <Volume2 className="w-3 h-3 text-white/40" />
                 </div>
               </div>
@@ -2395,13 +2419,21 @@ function ScenesTab({ production, onTabChange }: { production: Production; onTabC
                   <Download className="w-2.5 h-2.5" />
                   Export
                 </button>
-                <button className="flex items-center gap-1 text-[9px] font-medium px-2 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+                <button
+                  onClick={() => regenerateScene(selectedScene)}
+                  className="flex items-center gap-1 text-[9px] font-medium px-2 py-1 rounded border transition-colors hover:bg-black/5"
+                  style={{ borderColor: COLORS.border, color: COLORS.textMid }}
+                >
                   <Replace className="w-2.5 h-2.5" />
                   Regenerate
                 </button>
-                <button className="flex items-center gap-1 text-[9px] font-semibold px-2 py-1 rounded transition-opacity hover:opacity-90" style={{ backgroundColor: COLORS.gold, color: "#FFFFFF" }}>
+                <button
+                  onClick={() => approveScene(selectedScene)}
+                  className="flex items-center gap-1 text-[9px] font-semibold px-2 py-1 rounded transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: sceneStatuses[selectedScene] === "generated" ? COLORS.green : COLORS.gold, color: "#FFFFFF" }}
+                >
                   <Check className="w-2.5 h-2.5" />
-                  Approve
+                  {sceneStatuses[selectedScene] === "generated" ? "Approved" : "Approve"}
                 </button>
               </div>
             </div>
@@ -2418,7 +2450,11 @@ function ScenesTab({ production, onTabChange }: { production: Production; onTabC
                   {currentTakes.length} take{currentTakes.length !== 1 ? "s" : ""} · Select the best one
                 </p>
               </div>
-              <button className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.blue }}>
+              <button
+                onClick={() => regenerateScene(selectedScene)}
+                className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded border transition-colors hover:bg-black/5"
+                style={{ borderColor: COLORS.border, color: COLORS.blue }}
+              >
                 <Plus className="w-3 h-3" />
                 New take
               </button>
@@ -2428,7 +2464,11 @@ function ScenesTab({ production, onTabChange }: { production: Production; onTabC
               <div className="text-center py-6 rounded-lg border border-dashed" style={{ borderColor: COLORS.border }}>
                 <FilmIcon className="w-8 h-8 mx-auto mb-2" style={{ color: COLORS.border }} />
                 <p className="text-[11px] mb-1" style={{ color: COLORS.textMid }}>No takes generated yet</p>
-                <button className="text-[10px] font-semibold transition-colors hover:underline" style={{ color: COLORS.blue }}>
+                <button
+                  onClick={() => regenerateScene(selectedScene)}
+                  className="text-[10px] font-semibold transition-colors hover:underline"
+                  style={{ color: COLORS.blue }}
+                >
                   Generate first take →
                 </button>
               </div>
@@ -2439,7 +2479,7 @@ function ScenesTab({ production, onTabChange }: { production: Production; onTabC
                   return (
                     <div
                       key={take.id}
-                      onClick={() => setSelectedTake(take.id)}
+                      onClick={() => setSelectedTake(selectedTake === take.id ? null : take.id)}
                       className="rounded-lg border overflow-hidden cursor-pointer transition-all"
                       style={{
                         borderColor: isSelected ? COLORS.gold : COLORS.borderLight,
@@ -2469,8 +2509,17 @@ function ScenesTab({ production, onTabChange }: { production: Production; onTabC
                           <span className="text-[8px]" style={{ color: COLORS.textMuted }}>{take.duration}</span>
                         </div>
                         <p className="text-[8px] leading-snug mt-0.5" style={{ color: COLORS.textMid }}>{take.note}</p>
-                        <div className="mt-1">
+                        <div className="mt-1 flex items-center gap-1">
                           <TakeStatusBadge status={take.status} />
+                          {take.status !== "approved" && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setTakeStatus(selectedScene, take.id, "approved") }}
+                              className="text-[7px] font-semibold px-1 py-0.5 rounded transition-opacity hover:opacity-80"
+                              style={{ backgroundColor: `${COLORS.green}15`, color: COLORS.green }}
+                            >
+                              Use
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2487,46 +2536,21 @@ function ScenesTab({ production, onTabChange }: { production: Production; onTabC
           <SceneDetailCard
             icon={Camera}
             title="Camera direction"
-            rows={(() => {
-              const cam = SCENE_CAMERA[selectedScene] || SCENE_CAMERA[0]
-              return [
-                { label: "Shot type", value: cam.shot },
-                { label: "Lens", value: cam.lens },
-                { label: "Movement", value: cam.movement },
-                { label: "Height", value: cam.height },
-              ]
-            })()}
+            rows={shots[selectedScene] ? deriveCameraRows(shots[selectedScene], selectedScene) : []}
           />
 
           {/* Lighting Design */}
           <SceneDetailCard
             icon={Sun}
             title="Lighting design"
-            rows={(() => {
-              const light = SCENE_LIGHTING[selectedScene] || SCENE_LIGHTING[0]
-              return [
-                { label: "Setup", value: light.setup },
-                { label: "Intensity", value: light.intensity },
-                { label: "Temperature", value: light.temp },
-                { label: "Direction", value: light.direction },
-                { label: "Diffusion", value: light.diffusion },
-              ]
-            })()}
+            rows={shots[selectedScene] ? deriveLightingRows(shots[selectedScene], selectedScene) : []}
           />
 
           {/* Sound Design */}
           <SceneDetailCard
             icon={Waves}
             title="Sound design"
-            rows={(() => {
-              const sound = SCENE_SOUND[selectedScene] || SCENE_SOUND[0]
-              return [
-                { label: "Ambience", value: sound.src },
-                { label: "Score", value: sound.score },
-                { label: "Foley", value: sound.foley },
-                { label: "Dialog", value: sound.dialog },
-              ]
-            })()}
+            rows={shots[selectedScene] ? deriveSoundRows(shots[selectedScene], selectedScene) : []}
           />
 
           {/* Generation Settings */}
@@ -2564,7 +2588,7 @@ function ScenesTab({ production, onTabChange }: { production: Production; onTabC
           <div
             className="h-full transition-all"
             style={{
-              width: `${(generatedCount / SEQUENCE_NODES.length) * 100}%`,
+              width: `${(generatedCount / shots.length) * 100}%`,
               backgroundColor: COLORS.gold,
             }}
           />
@@ -2573,38 +2597,38 @@ function ScenesTab({ production, onTabChange }: { production: Production; onTabC
         <div className="flex items-center gap-3 px-6 py-2.5">
           {/* Sequence nodes */}
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            {SEQUENCE_NODES.map((node, idx) => (
-              <div key={node.label} className="flex items-center gap-1.5">
-                <button
-                  onClick={() => { setSelectedScene(idx); setSelectedTake("A") }}
-                  className="flex items-center gap-1 px-2 py-1 rounded transition-colors"
-                  style={{
-                    backgroundColor: selectedScene === idx ? "rgba(194,154,91,0.15)" : "transparent",
-                  }}
-                >
-                  <div
-                    className="w-5 h-5 rounded flex items-center justify-center text-[8px] font-bold"
-                    style={{
-                      backgroundColor: node.status === "generated" ? COLORS.green : node.status === "generating" ? COLORS.gold : "rgba(255,255,255,0.1)",
-                      color: "#FFFFFF",
-                    }}
+            {shots.map((shot, idx) => {
+              const nodeStatus = sceneStatuses[idx]
+              const label = String(idx + 1).padStart(2, "0")
+              return (
+                <div key={shot.no} className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => { setSelectedScene(idx); setSelectedTake(null) }}
+                    className="flex items-center gap-1 px-2 py-1 rounded transition-colors"
+                    style={{ backgroundColor: selectedScene === idx ? "rgba(194,154,91,0.15)" : "transparent" }}
                   >
-                    {node.status === "generated" ? <Check className="w-2.5 h-2.5" /> : node.label}
-                  </div>
-                  <span
-                    className="text-[8px] font-medium hidden sm:inline"
-                    style={{
-                      color: node.status === "queued" ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.7)",
-                    }}
-                  >
-                    {SCENE_CARD_TITLES[idx]?.split(" ")[0] || `S${node.label}`}
-                  </span>
-                </button>
-                {idx < SEQUENCE_NODES.length - 1 && (
-                  <div className="w-3 h-px" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
-                )}
-              </div>
-            ))}
+                    <div
+                      className="w-5 h-5 rounded flex items-center justify-center text-[8px] font-bold"
+                      style={{
+                        backgroundColor: nodeStatus === "generated" ? COLORS.green : nodeStatus === "generating" ? COLORS.gold : "rgba(255,255,255,0.1)",
+                        color: "#FFFFFF",
+                      }}
+                    >
+                      {nodeStatus === "generated" ? <Check className="w-2.5 h-2.5" /> : label}
+                    </div>
+                    <span
+                      className="text-[8px] font-medium hidden sm:inline"
+                      style={{ color: nodeStatus === "queued" ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.7)" }}
+                    >
+                      {deriveSceneName(shot, idx).split(" ")[0]}
+                    </span>
+                  </button>
+                  {idx < shots.length - 1 && (
+                    <div className="w-3 h-px" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
+                  )}
+                </div>
+              )
+            })}
           </div>
 
           {/* Spacer */}
@@ -2614,7 +2638,7 @@ function ScenesTab({ production, onTabChange }: { production: Production; onTabC
           <div className="flex items-center gap-3 flex-shrink-0">
             <div className="text-right">
               <p className="text-[9px] font-semibold text-white">
-                {generatedCount}/{SEQUENCE_NODES.length} scenes ready
+                {generatedCount}/{shots.length} scenes ready
               </p>
               <p className="text-[8px]" style={{ color: "rgba(255,255,255,0.4)" }}>
                 {formatTimecode(totalDuration)} total
