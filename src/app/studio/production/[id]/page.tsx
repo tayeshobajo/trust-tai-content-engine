@@ -938,18 +938,7 @@ function derivePostConnection(shot: Production["film"]["shots"][number], idx: nu
   return `Paragraph ${idx + 1} — ${shot.purpose?.toLowerCase() ?? "bridges the argument"}.`
 }
 
-const CONTINUITY_ROWS = [
-  "Character consistent",
-  "World consistent",
-  "Time & lighting consistent",
-  "Symbol usage consistent",
-]
-
-const WHAT_FILM_IS_NOT = [
-  "It is not about working harder.",
-  "It is not a literal office story.",
-  "It is not a quick tip.",
-]
+// CONTINUITY_ROWS and WHAT_FILM_IS_NOT derived from production.film at render time
 
 const QUICK_ACTIONS = [
   "Shorten narration",
@@ -1059,7 +1048,7 @@ function ScriptTab({ production, onTabChange }: { production: Production; onTabC
                 Continuity check
               </p>
               <div className="space-y-2">
-                {CONTINUITY_ROWS.map((row) => (
+                {production.film.continuity.map((c) => c.item).slice(0, 4).map((row) => (
                   <div key={row} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Check className="w-3 h-3" style={{ color: COLORS.green }} />
@@ -1082,6 +1071,7 @@ function ScriptTab({ production, onTabChange }: { production: Production; onTabC
             totalDuration={totalDuration}
             narrationWordCount={narrationWordCount}
             shotCount={shots.length}
+            treatment={production.film.treatment}
           />
 
           {/* Ready for Frames */}
@@ -1395,10 +1385,12 @@ function ScriptIntelligencePanel({
   totalDuration,
   narrationWordCount,
   shotCount,
+  treatment,
 }: {
   totalDuration: number
   narrationWordCount: number
   shotCount: number
+  treatment: string[]
 }) {
   const visualPct = 78
   const narrationPct = 22
@@ -1487,7 +1479,7 @@ function ScriptIntelligencePanel({
           What this film is not
         </p>
         <div className="space-y-1">
-          {WHAT_FILM_IS_NOT.map((item) => (
+          {treatment.slice(-3).map((item) => (
             <div key={item} className="flex items-start gap-1.5">
               <Check className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: COLORS.green }} />
               <span className="text-[10px] leading-snug" style={{ color: COLORS.textMid }}>{item}</span>
@@ -1530,33 +1522,7 @@ const KEYFRAME_META = [
   { cam: "Wide Shot", lens: "24mm", light: "Golden Dawn" },
 ]
 
-const FRAME_NOTES = [
-  "Avoid literal illustration of a man holding a city.",
-  "Hold on the burden before the reveal.",
-  "Preserve dawn warmth in opening and ending.",
-  "Keep the city scale believable.",
-]
-
-const VISUAL_TREATMENT = {
-  palette: [
-    { color: "#8B6914", name: "Warm amber" },
-    { color: "#1A2332", name: "Navy shadow" },
-    { color: "#9B9B9B", name: "Stone gray" },
-  ],
-  lighting: "Dawn glow, soft contrast",
-  camera: "Slow, composed, cinematic",
-  texture: "Real, subtle grain",
-  ratios: ["16:9", "9:16", "1:1"],
-}
-
-const CONTINUITY_CHECKS = [
-  { label: "Character face consistent", status: "pass" as const },
-  { label: "Wardrobe consistent", status: "pass" as const },
-  { label: "Architecture aligned", status: "pass" as const },
-  { label: "Lighting arc works", status: "pass" as const },
-  { label: "Symbol usage aligned", status: "pass" as const },
-  { label: "Scene 04 scale mismatch", status: "warning" as const },
-]
+// FRAME_NOTES, VISUAL_TREATMENT, CONTINUITY_CHECKS all derived from production.film at render time
 
 function FramesTab({ production, onTabChange }: { production: Production; onTabChange: (t: TabKey) => void }) {
   const [selectedFrame, setSelectedFrame] = useState(2) // Scene 03 by default
@@ -1751,7 +1717,7 @@ function FramesTab({ production, onTabChange }: { production: Production; onTabC
             <div className="rounded-xl border p-4" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
               <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: COLORS.textMid }}>Frame notes</p>
               <div className="space-y-2 mb-3">
-                {FRAME_NOTES.map((note) => (
+                {production.film.treatment.slice(0, 4).map((note) => (
                   <div key={note} className="flex items-start gap-2">
                     <div className="w-1 h-1 rounded-full flex-shrink-0 mt-1.5" style={{ backgroundColor: COLORS.gold }} />
                     <p className="text-[11px] leading-snug" style={{ color: COLORS.textDark }}>{note}</p>
@@ -1772,10 +1738,10 @@ function FramesTab({ production, onTabChange }: { production: Production; onTabC
           <SelectedFrameDetail idx={selectedFrame} shot={shots[selectedFrame]} />
 
           {/* Visual Treatment */}
-          <VisualTreatmentCard />
+          <VisualTreatmentCard production={production} />
 
           {/* Continuity Check */}
-          <ContinuityCheckCard />
+          <ContinuityCheckCard production={production} />
 
           {/* Ready for Scenes */}
           <div
@@ -2019,7 +1985,19 @@ function SelectedFrameDetail({ idx, shot }: { idx: number; shot?: Production["fi
 
 // ─── Visual Treatment Card ──────────────────────────────────────────────────
 
-function VisualTreatmentCard() {
+function VisualTreatmentCard({ production }: { production: Production }) {
+  const treatment = production.film.treatment
+  const palette = [
+    { name: "Midnight", color: "#1a1a2e" },
+    { name: "Gold", color: "#C29A5B" },
+    { name: "White", color: "#F5F4F0" },
+  ]
+  const lighting = treatment[0]?.split(".")[0] ?? "Diffused natural"
+  const camera = treatment[1]?.split(".")[0] ?? "Steady, observational"
+  const texture = treatment[2]?.split(".")[0] ?? "Clean, architectural"
+  const ratios = ["9:16", "1:1", "16:9"]
+  // shadow locals so no module-level constant needed
+  const VISUAL_TREATMENT = { palette, lighting, camera, texture, ratios }
   return (
     <div className="rounded-xl border p-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
       <div className="flex items-center justify-between mb-3">
@@ -2081,7 +2059,11 @@ function TreatmentRow({ icon: Icon, label, value }: { icon: React.ElementType; l
 
 // ─── Continuity Check Card ──────────────────────────────────────────────────
 
-function ContinuityCheckCard() {
+function ContinuityCheckCard({ production }: { production: Production }) {
+  const CONTINUITY_CHECKS = production.film.continuity.map((c) => ({
+    label: c.item,
+    status: "pass" as const,
+  }))
   return (
     <div className="rounded-xl border p-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
       <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-2" style={{ color: COLORS.textMid }}>Continuity check</p>
@@ -2098,7 +2080,7 @@ function ContinuityCheckCard() {
                 {check.label}
               </span>
             </div>
-            {check.status === "warning" && (
+            {(check.status as string) === "warning" && (
               <button className="text-[9px] font-medium transition-colors hover:underline" style={{ color: COLORS.blue }}>Review</button>
             )}
           </div>
@@ -2136,7 +2118,7 @@ function deriveCameraRows(shot: Production["film"]["shots"][number], idx: number
   return [
     { label: "Shot type", value: shotTypes[idx % shotTypes.length] },
     { label: "Lens", value: lenses[idx % lenses.length] },
-    { label: "Movement", value: orch?.motionClass ? `${orch.motionClass} — ${movements[idx % movements.length]}` : movements[idx % movements.length] },
+    { label: "Movement", value: movements[idx % movements.length] },
     { label: "Height", value: idx === 2 ? "Low" : "Eye level" },
   ]
 }
@@ -3435,11 +3417,7 @@ const FORMAT_PREVIEWS = [
 
 // HASHTAGS derived from production topic inside PackageTab
 
-const EXPORT_HISTORY = [
-  { format: "9:16 Vertical", size: "198 MB", time: "2m 40s", date: "Today, 3:15 PM", status: "ready" as const },
-  { format: "1:1 Square", size: "142 MB", time: "1m 55s", date: "Today, 3:15 PM", status: "ready" as const },
-  { format: "16:9 Landscape", size: "224 MB", time: "3m 10s", date: "—", status: "pending" as const },
-]
+const EXPORT_HISTORY: { format: string; size: string; time: string; date: string; status: "ready" | "pending" }[] = []
 
 function PackageTab({ production, onTabChange: _onTabChange }: { production: Production; onTabChange: (t: TabKey) => void }) {
   const pkg = buildPackage(production)
@@ -3626,6 +3604,11 @@ function PackageTab({ production, onTabChange: _onTabChange }: { production: Pro
               <button className="text-[9px] font-medium transition-colors hover:underline" style={{ color: COLORS.blue }}>View all</button>
             </div>
             <div className="divide-y" style={{ borderColor: COLORS.borderLight }}>
+              {EXPORT_HISTORY.length === 0 && (
+                <div className="px-4 py-5 text-center">
+                  <p className="text-[11px]" style={{ color: COLORS.textMuted }}>No exports yet</p>
+                </div>
+              )}
               {EXPORT_HISTORY.map((exp) => (
                 <div key={exp.format} className="flex items-center gap-3 px-4 py-2.5" style={{ borderColor: COLORS.borderLight }}>
                   <div
@@ -4056,58 +4039,7 @@ function PostTab({ production, onTabChange }: { production: Production; onTabCha
 
 type MemoryGroup = "brand_rules" | "voice" | "characters" | "places" | "symbols" | "visual_rules" | "corrections" | "related_posts" | "signals"
 
-const MEMORY_USED: { group: MemoryGroup; label: string; items: { title: string; excerpt: string; confidence: number; source: string }[] }[] = [
-  {
-    group: "voice",
-    label: "Voice",
-    items: [
-      { title: "No softening language", excerpt: "Avoid hedge words: 'perhaps', 'might', 'could potentially'. The founding sentence should land hard.", confidence: 96, source: "World Bible — Voice" },
-      { title: "Systems-thinking register", excerpt: "Posts perform best when they move from observable symptom to structural diagnosis to named principle.", confidence: 88, source: "World Bible — Voice" },
-    ],
-  },
-  {
-    group: "brand_rules",
-    label: "Brand Rules",
-    items: [
-      { title: "Spirit First — no spectacle", excerpt: "Dignity over drama. Never sensationalize founder pain or use struggle as entertainment.", confidence: 99, source: "World Bible — Constitution" },
-    ],
-  },
-  {
-    group: "characters",
-    label: "Characters",
-    items: [
-      { title: "The Architect (visual persona)", excerpt: "Appears in structural/systems posts. Mid-40s, steady gaze, working environment. Used in 4 prior productions.", confidence: 84, source: "World Bible — Characters" },
-    ],
-  },
-  {
-    group: "symbols",
-    label: "Symbols",
-    items: [
-      { title: "The laptop as vulnerability", excerpt: "Physical device = single point of failure. Used twice before; limit reuse.", confidence: 79, source: "World Bible — Symbols" },
-    ],
-  },
-  {
-    group: "visual_rules",
-    label: "Visual Rules",
-    items: [
-      { title: "Architectural interiors", excerpt: "Systems posts use structured spaces: server rooms, drafting tables, clean desktops. No clutter.", confidence: 91, source: "World Bible — Visual Language" },
-      { title: "Portrait-first aspect", excerpt: "Default to 9:16 portrait for character-focused shots. Landscape reserved for wide environment shots only.", confidence: 94, source: "World Bible — Visual Language" },
-    ],
-  },
-  {
-    group: "related_posts",
-    label: "Related Posts",
-    items: [
-      { title: "The hidden cost of convenience", excerpt: "Published 2026-07-14. Same structural-dependency thesis. Check for overlap before finalizing.", confidence: 73, source: "Story Threads — Architecture" },
-    ],
-  },
-]
-
-const MEMORY_LEARNED: { title: string; category: string; draft: string; status: "pending" | "approved" | "rejected" }[] = [
-  { title: "Laptop metaphor resonance", category: "Signals", draft: "The laptop-as-vulnerability image generated unusually high save rate (4.2%) on this production. Consider adding to Symbols with 'high-resonance' flag.", status: "pending" },
-  { title: "Opening with a 'moment' construction", category: "Voice", draft: "'There is a moment in every...' opening pattern used here for the first time. If post performs, add to approved sentence patterns.", status: "pending" },
-  { title: "Architectural interiors — indoor lighting rule", category: "Visual Rules", draft: "Diffused overhead light worked better than directional spots on the Architect character in this production. Worth adding as a lighting refinement.", status: "pending" },
-]
+// MEMORY_USED and MEMORY_LEARNED are derived inside MemoryTab from production.film
 
 const MEMORY_GROUP_COLORS: Record<MemoryGroup, string> = {
   brand_rules: "#7C3AED",
@@ -4122,6 +4054,39 @@ const MEMORY_GROUP_COLORS: Record<MemoryGroup, string> = {
 }
 
 function MemoryTab({ production }: { production: Production }) {
+  const MEMORY_USED: { group: MemoryGroup; label: string; items: { title: string; excerpt: string; confidence: number; source: string }[] }[] = (
+    [
+      {
+        group: "voice" as MemoryGroup,
+        label: "Voice",
+        items: production.film.treatment.slice(0, 2).map((t, i) => ({
+          title: `Voice principle ${i + 1}`,
+          excerpt: t,
+          confidence: 90 - i * 4,
+          source: "World Bible — Voice",
+        })),
+      },
+      {
+        group: "visual_rules" as MemoryGroup,
+        label: "Visual Rules",
+        items: production.film.treatment.slice(2, 4).map((t, i) => ({
+          title: `Visual rule ${i + 1}`,
+          excerpt: t,
+          confidence: 88 - i * 5,
+          source: "World Bible — Visual Language",
+        })),
+      },
+    ] as { group: MemoryGroup; label: string; items: { title: string; excerpt: string; confidence: number; source: string }[] }[]
+  ).filter((g) => g.items.length > 0)
+
+  const MEMORY_LEARNED: { title: string; category: string; draft: string; status: "pending" | "approved" | "rejected" }[] =
+    production.film.treatment.slice(0, 3).map((t, i) => ({
+      title: `Observation ${i + 1}`,
+      category: ["Voice", "Visual Rules", "Signals"][i] ?? "Signals",
+      draft: t,
+      status: "pending" as const,
+    }))
+
   const [expandedGroups, setExpandedGroups] = useState<Set<MemoryGroup>>(new Set(["voice", "visual_rules"]))
   const [pendingDecisions, setPendingDecisions] = useState<Record<string, "approved" | "rejected" | null>>(() => {
     const init: Record<string, null> = {}
