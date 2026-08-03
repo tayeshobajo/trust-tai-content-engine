@@ -513,68 +513,106 @@ export default function StudioHomePage() {
                 className="rounded-xl border overflow-hidden"
                 style={{ backgroundColor: "#FFFFFF", borderColor: "#DDD8CE" }}
               >
-                <div className="grid md:grid-cols-[minmax(0,1fr)_320px]">
-                  {/* Video / frame preview */}
-                  <div className="relative aspect-video" style={{ backgroundColor: "#0D1626" }}>
-                    <div
-                      className="absolute inset-0"
-                      style={{ background: productionGradient(nowShowing.title), opacity: 0.85 }}
-                    />
+                <div className="grid md:grid-cols-[minmax(0,1fr)_300px]">
+                  {/* Video / frame preview — custom overlay, no native controls */}
+                  <div
+                    className="relative aspect-video group cursor-pointer"
+                    style={{ backgroundColor: "#0D1626" }}
+                    onClick={() => {
+                      const video = document.getElementById('now-showing-video') as HTMLVideoElement | null
+                      if (video) {
+                        if (video.paused) video.play()
+                        else video.pause()
+                      }
+                    }}
+                  >
                     {nowShowing.film.shots.find((s) => s.renderedVideoUrl)?.renderedVideoUrl ? (
                       <video
+                        id="now-showing-video"
                         src={nowShowing.film.shots.find((s) => s.renderedVideoUrl)?.renderedVideoUrl}
                         className="absolute inset-0 w-full h-full object-cover"
-                        controls
                         playsInline
                       />
                     ) : (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="flex items-center justify-center w-14 h-14 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.9)" }}>
-                          <Play className="w-5 h-5" style={{ color: "#0D1626" }} />
-                        </div>
-                      </div>
+                      <div
+                        className="absolute inset-0"
+                        style={{ background: productionGradient(nowShowing.title), opacity: 0.85 }}
+                      />
                     )}
+                    {/* Custom play overlay — always visible on hero */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="flex items-center justify-center w-16 h-16 rounded-full transition-transform group-hover:scale-110" style={{ backgroundColor: "rgba(255,255,255,0.92)" }}>
+                        <Play className="w-6 h-6 ml-0.5" style={{ color: "#0D1626" }} />
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Info panel */}
-                  <div className="p-5 flex flex-col justify-between" style={{ borderLeft: "1px solid #EAE6DF" }}>
-                    <div>
-                      <p className="text-[9px] font-bold tracking-[0.14em] uppercase mb-2" style={{ color: "#C29A5B" }}>
-                        Latest film
-                      </p>
-                      <h3 className="font-serif text-xl leading-tight mb-2" style={{ color: "#1A2332" }}>
-                        {nowShowing.title}
-                      </h3>
-                      <p className="text-[11px] leading-relaxed" style={{ color: "#4A5568" }}>
-                        Video companion for:
-                      </p>
-                      <p className="text-[11px] leading-relaxed italic mt-0.5" style={{ color: "#1A2332" }}>
-                        {nowShowing.sourceThought.slice(0, 120)}{nowShowing.sourceThought.length > 120 ? "..." : ""}
-                      </p>
+                  {/* Info panel — balanced, no dead space */}
+                  <div className="p-5 flex flex-col" style={{ borderLeft: "1px solid #EAE6DF" }}>
+                    <p className="text-[9px] font-bold tracking-[0.14em] uppercase mb-2" style={{ color: "#C29A5B" }}>
+                      Latest film
+                    </p>
+                    <h3 className="font-serif text-xl leading-tight mb-3" style={{ color: "#1A2332" }}>
+                      {nowShowing.title}
+                    </h3>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: "#8A8578" }}>
+                      Video companion for
+                    </p>
+                    <p className="text-[11px] leading-relaxed italic mb-4" style={{ color: "#1A2332" }}>
+                      {nowShowing.sourceThought.length > 140
+                        ? `“${nowShowing.sourceThought.slice(0, 137)}…”`
+                        : `“${nowShowing.sourceThought}”`
+                      }
+                    </p>
+
+                    {/* Metadata + world tags */}
+                    <div className="flex flex-wrap items-center gap-1 mb-3">
+                      <span className="text-[10px]" style={{ color: "#8A8578" }}>
+                        {nowShowing.film.shots.length} shots · ~{nowShowing.film.shots.length * 8}s
+                      </span>
+                      {nowShowing.film.shots.filter((s) => s.renderedVideoUrl).length > 0 && (
+                        <span className="text-[10px] font-medium ml-1" style={{ color: "#2F62D8" }}>
+                          · Motion ready
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1 mb-4">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(47,98,216,0.06)", color: "#2F62D8" }}>
+                        Canon Scene 003
+                      </span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(194,154,91,0.08)", color: "#C29A5B" }}>
+                        World Bible v1
+                      </span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(194,154,91,0.08)", color: "#C29A5B" }}>
+                        Spirit First
+                      </span>
                     </div>
 
-                    <div className="mt-4 space-y-1.5">
+                    {/* CTA — single primary, clean hierarchy */}
+                    <div className="mt-auto">
                       <button
                         onClick={() => router.push(`/film-studio/render?id=${nowShowing.id}`)}
-                        className="flex items-center gap-1.5 text-[11px] font-medium w-full px-3 py-2 rounded transition-colors"
+                        className="flex items-center justify-center gap-1.5 text-[11px] font-semibold w-full px-3 py-2 rounded transition-colors mb-1.5"
                         style={{ backgroundColor: "#1A2332", color: "#FFFFFF" }}
                       >
                         <Play className="w-3 h-3" />
-                        Play film
+                        Open in render studio
                       </button>
-                      <div className="flex gap-1.5">
+                      <div className="flex items-center justify-center gap-3 text-[10px]">
                         <button
                           onClick={() => router.push(`/film-studio?id=${nowShowing.id}`)}
-                          className="flex-1 text-[10px] font-medium px-2.5 py-1.5 rounded border transition-colors hover:bg-black/[0.02]"
-                          style={{ borderColor: "#DDD8CE", color: "#4A5568" }}
+                          className="font-medium transition-colors hover:underline"
+                          style={{ color: "#2F62D8" }}
                         >
-                          Open production
+                          Production
                         </button>
+                        <span style={{ color: "#DDD8CE" }}>·</span>
                         <button
-                          className="flex-1 text-[10px] font-medium px-2.5 py-1.5 rounded border transition-colors hover:bg-black/[0.02]"
-                          style={{ borderColor: "#DDD8CE", color: "#4A5568" }}
+                          onClick={() => router.push(`/library/${nowShowing.id}`)}
+                          className="font-medium transition-colors hover:underline"
+                          style={{ color: "#2F62D8" }}
                         >
-                          Copy post
+                          Package
                         </button>
                       </div>
                     </div>
