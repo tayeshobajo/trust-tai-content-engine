@@ -63,44 +63,12 @@ interface SearchResult {
 const SEMANTIC_EXAMPLES = [
   "Show every film where the founder character appears",
   "Find posts about being needed",
-  "Scripts that mention the city at first light",
-  "Symbols used more than twice",
   "Memories with confidence above 90%",
-  "All productions in the Founder Must Become Unnecessary thread",
+  "All productions in progress",
 ]
 
-const SAMPLE_RESULTS: SearchResult[] = [
-  {
-    id: "r1", type: "posts", title: "The Man Who Carried a City",
-    excerpt: "In the Trust Tai world, every responsibility a person accepts becomes a real structure inside a small case they carry…",
-    meta: "Published · 2026-07-28", href: "/studio/production/prod-pilot-city-001",
-  },
-  {
-    id: "r2", type: "scripts", title: "The Man Who Carried a City — Script",
-    excerpt: "Scene 6: The Architect kneels. Removes the smallest structure from the case. The child's hand reaches out — not to take, but to ask.",
-    meta: "Approved · prod-pilot-city-001", href: "/studio/production/prod-pilot-city-001",
-  },
-  {
-    id: "r3", type: "characters", title: "The Architect",
-    excerpt: "Mid-40s founder figure. Steady gaze, working environment. Appears in structural and systems posts. 4 productions.",
-    meta: "84% continuity confidence", href: "/characters",
-  },
-  {
-    id: "r4", type: "threads", title: "The Founder Must Become Unnecessary",
-    excerpt: "The highest form of leadership is building something that no longer needs you. Every system a founder creates either extends their necessity or ends it.",
-    meta: "2 published posts · 3 open questions", href: "/world/threads/founder-unnecessary",
-  },
-  {
-    id: "r5", type: "memories", title: "No softening language",
-    excerpt: "Avoid hedge words: 'perhaps', 'might', 'could potentially'. The founding sentence should land hard.",
-    meta: "96% confidence · World Bible — Voice", href: "/memory",
-  },
-  {
-    id: "r6", type: "symbols", title: "The case / container",
-    excerpt: "Meaning: internalized responsibility made physical. Used 3 times across productions. High resonance signal from City post.",
-    meta: "3 uses · monitor reuse", href: "/world",
-  },
-]
+// Search results are derived at query-time from real data — no static seeds
+const SAMPLE_RESULTS: SearchResult[] = []
 
 const SCOPE_CONFIG: { key: SearchScope; label: string; icon: React.ElementType; color: string }[] = [
   { key: "all", label: "All", icon: Search, color: C.textMuted },

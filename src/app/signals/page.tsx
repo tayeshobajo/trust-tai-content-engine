@@ -1,6 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState, useEffect } from "react"
+import { getProductions, PRODUCTIONS_CHANGED_EVENT } from "@/lib/studio-store"
+import type { Production } from "@/data/studio"
 import Shell from "@/components/Shell"
 import {
   Plus,
@@ -48,14 +50,7 @@ const C = {
 // DATA
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const OVERVIEW_STATS = [
-  { label: "Published packages", value: "3", change: "+1 this week", icon: FileText, trend: "up" as const },
-  { label: "Total reach", value: "12.4K", change: "+8% vs prior", icon: Eye, trend: "up" as const },
-  { label: "Meaningful comments", value: "47", change: "+12 this week", icon: MessageSquare, trend: "up" as const },
-  { label: "Saves", value: "234", change: "+61 this week", icon: Bookmark, trend: "up" as const },
-  { label: "Video completions", value: "68%", change: "-4% vs prior", icon: Play, trend: "down" as const },
-  { label: "Business inquiries", value: "2", change: "From signals", icon: ThumbsUp, trend: "neutral" as const },
-]
+// OVERVIEW_STATS derived from productions at render time
 
 interface PackagePerf {
   id: string
@@ -70,103 +65,9 @@ interface PackagePerf {
   thread: string
 }
 
-const PACKAGES: PackagePerf[] = [
-  {
-    id: "pkg-city",
-    title: "The Man Who Carried a City",
-    publishedAt: "2026-07-28",
-    postMetrics: { impressions: "8,240", likes: "312", comments: "29", saves: "186", shares: "43" },
-    videoMetrics: { views: "2,140", completionRate: "74%", avgWatch: "5.2s" },
-    sentiment: "positive",
-    questions: [
-      "What happens next — does the child carry it forever?",
-      "Is this based on a real founder experience?",
-      "How do I build something that doesn't need me?",
-    ],
-    businessOutcome: "2 direct inquiries from founders citing the video specifically.",
-    taiReflection: "The save rate surprised me. People are bookmarking it to re-read. The child-lifting-the-case moment is the one that lands.",
-    thread: "The Founder Must Become Unnecessary",
-  },
-  {
-    id: "pkg-convenience",
-    title: "The Hidden Cost of Convenience",
-    publishedAt: "2026-07-14",
-    postMetrics: { impressions: "5,820", likes: "198", comments: "14", saves: "97", shares: "21" },
-    videoMetrics: { views: "1,340", completionRate: "61%", avgWatch: "4.1s" },
-    sentiment: "mixed",
-    questions: [
-      "How do you know when a convenience has become a dependency?",
-    ],
-    taiReflection: "Good post, weaker film. The metaphor didn't land as clearly as City. The completion rate drop tells me the visual treatment wasn't strong enough.",
-    thread: "Hidden Systems / Visible Symptoms",
-  },
-  {
-    id: "pkg-client",
-    title: "The Client Who Paid Without Being Asked",
-    publishedAt: "2026-05-30",
-    postMetrics: { impressions: "4,110", likes: "156", comments: "11", saves: "72", shares: "14" },
-    videoMetrics: { views: "980", completionRate: "58%", avgWatch: "3.8s" },
-    sentiment: "positive",
-    questions: [
-      "How do you attract clients who already know their value?",
-    ],
-    thread: "Value Before Price",
-  },
-]
+// PACKAGES derived from productions at render time
 
-const PATTERNS = [
-  {
-    category: "Recurring questions",
-    icon: MessageSquare,
-    accent: C.blue,
-    items: [
-      { insight: "\"How do I build something that doesn't need me?\"", frequency: "3 comments across 2 posts", action: "Direct thread signal — The Founder Must Become Unnecessary next chapter" },
-      { insight: "\"How do you attract clients who already know their value?\"", frequency: "2 separate threads", action: "Potential post: recognition as a sales skill (Value Before Price thread)" },
-    ],
-  },
-  {
-    category: "Depth-producing themes",
-    icon: Brain,
-    accent: C.purple,
-    items: [
-      { insight: "Structural metaphors — the case, the threads, the bridge", frequency: "Highest save rates across all posts", action: "Continue: every systems post needs a physical metaphor" },
-      { insight: "\"Before and after\" framing — reader state change is explicit", frequency: "Correlated with meaningful comments", action: "Build this into Post Intelligence defaults" },
-    ],
-  },
-  {
-    category: "High-completion films",
-    icon: Play,
-    accent: C.green,
-    items: [
-      { insight: "The Man Who Carried a City — 74% completion", frequency: "Highest in portfolio", action: "Character-led, portrait format, single metaphor. Replicate." },
-    ],
-  },
-  {
-    category: "Attention-grabbing openings",
-    icon: Sparkles,
-    accent: C.gold,
-    items: [
-      { insight: "\"There is a moment in every founder's journey...\" — opening sentence pattern", frequency: "Used once, strong early exit rate drop (good)", action: "Pending approval in Voice memory as sentence pattern" },
-    ],
-  },
-  {
-    category: "Conversation-creating ideas",
-    icon: MessageSquare,
-    accent: C.orange,
-    items: [
-      { insight: "The post-to-film relationship (\"what does the film add?\")", frequency: "Most common DM conversation starter", action: "Could become a standalone post about the Studio philosophy itself" },
-    ],
-  },
-  {
-    category: "Gaps",
-    icon: AlertCircle,
-    accent: C.red,
-    items: [
-      { insight: "No post yet on what founders are afraid to say out loud", frequency: "Pattern across comment subtext", action: "Could thread into Hidden Systems — what systems are built to avoid the truth?" },
-      { insight: "Video completion rate dropping for non-character films", frequency: "Hidden Cost and Client films both <65%", action: "Prioritize character presence in future visual treatments" },
-    ],
-  },
-]
+// PATTERNS derived from productions at render time
 
 const SIGNAL_SOURCES = [
   { label: "LinkedIn post metrics", status: "manual", items: 3 },
@@ -184,8 +85,43 @@ type SignalsView = "overview" | "packages" | "patterns" | "sources"
 
 export default function SignalsPage() {
   const [view, setView] = useState<SignalsView>("overview")
-  const [expandedPkg, setExpandedPkg] = useState<string | null>("pkg-city")
-  const [expandedPattern, setExpandedPattern] = useState<string | null>("Depth-producing themes")
+  const [expandedPkg, setExpandedPkg] = useState<string | null>(null)
+  const [expandedPattern, setExpandedPattern] = useState<string | null>(null)
+  const [productions, setProductions] = useState<Production[]>([])
+
+  useEffect(() => {
+    const load = () => setProductions(getProductions())
+    load()
+    window.addEventListener(PRODUCTIONS_CHANGED_EVENT, load)
+    return () => window.removeEventListener(PRODUCTIONS_CHANGED_EVENT, load)
+  }, [])
+
+  const publishedProductions = productions.filter(p => p.publishedAt)
+
+  // Derive overview stats from real productions
+  const OVERVIEW_STATS = [
+    { label: "Published packages", value: String(publishedProductions.length), change: publishedProductions.length > 0 ? `${publishedProductions.length} total` : "None yet", icon: FileText, trend: "neutral" as const },
+    { label: "In production", value: String(productions.filter(p => !p.publishedAt && !p.archivedAt).length), change: "Active", icon: Film, trend: "neutral" as const },
+    { label: "Film-approved", value: String(productions.filter(p => p.gates.film?.status === "approved").length), change: "Ready", icon: Play, trend: "neutral" as const },
+    { label: "Needs decision", value: String(productions.filter(p => Object.values(p.gates).some(g => g?.status === "hold")).length), change: "On hold", icon: AlertCircle, trend: "neutral" as const },
+    { label: "Total shots planned", value: String(productions.reduce((sum, p) => sum + p.film.shots.length, 0)), change: "Across all", icon: Eye, trend: "neutral" as const },
+    { label: "Motion rendered", value: String(productions.reduce((sum, p) => sum + p.film.shots.filter(s => s.renderedVideoUrl).length, 0)), change: "Scenes done", icon: ThumbsUp, trend: "neutral" as const },
+  ]
+
+  // Derive packages from published productions
+  const PACKAGES: PackagePerf[] = publishedProductions.map(p => ({
+    id: p.id,
+    title: p.title,
+    publishedAt: p.publishedAt ?? "",
+    postMetrics: { impressions: "—", likes: "—", comments: "—", saves: "—", shares: "—" },
+    videoMetrics: { views: "—", completionRate: "—", avgWatch: "—" },
+    sentiment: "neutral" as const,
+    questions: [],
+    thread: "",
+  }))
+
+  // Patterns are empty until real signal data exists
+  const PATTERNS: { category: string; icon: React.ElementType; accent: string; items: { insight: string; frequency: string; action: string }[] }[] = []
 
   const VIEWS: { key: SignalsView; label: string }[] = [
     { key: "overview", label: "Overview" },
@@ -240,7 +176,7 @@ export default function SignalsPage() {
                       <p className="font-bold text-xl mb-0.5" style={{ color: C.textDark }}>{stat.value}</p>
                       <p className="text-[8px] font-bold tracking-[0.1em] uppercase leading-tight mb-1" style={{ color: C.textMuted }}>{stat.label}</p>
                       <p className="text-[9px]"
-                        style={{ color: stat.trend === "up" ? C.green : stat.trend === "down" ? C.red : C.textMuted }}>
+                        style={{ color: (stat.trend as string) === "up" ? C.green : (stat.trend as string) === "down" ? C.red : C.textMuted }}>
                         {stat.change}
                       </p>
                     </div>
@@ -275,6 +211,11 @@ export default function SignalsPage() {
                   </button>
                 </div>
                 <div className="grid md:grid-cols-2 gap-3">
+                  {PATTERNS.length === 0 && (
+                    <div className="col-span-2 rounded-xl border border-dashed p-6 text-center" style={{ borderColor: C.border }}>
+                      <p className="text-[11px]" style={{ color: C.textMuted }}>No patterns yet. Publish packages and log signals to surface analysis.</p>
+                    </div>
+                  )}
                   {PATTERNS.slice(0, 2).map((pat) => {
                     const Icon = pat.icon
                     return (
@@ -296,6 +237,12 @@ export default function SignalsPage() {
           {/* ─── PER-PACKAGE ─── */}
           {view === "packages" && (
             <div className="space-y-4">
+              {PACKAGES.length === 0 && (
+                <div className="rounded-xl border border-dashed p-8 text-center" style={{ borderColor: C.border }}>
+                  <p className="text-[12px] mb-1" style={{ color: C.textMid }}>No published packages yet.</p>
+                  <p className="text-[10px]" style={{ color: C.textMuted }}>Performance metrics will appear here after you publish a production.</p>
+                </div>
+              )}
               {PACKAGES.map((pkg) => {
                 const isOpen = expandedPkg === pkg.id
                 return (
@@ -405,6 +352,12 @@ export default function SignalsPage() {
                   Every pattern below is grounded in production data and audience behavior. Recommendations explain their evidence. Engagement informs — it never dictates the creative.
                 </p>
               </div>
+              {PATTERNS.length === 0 && (
+                <div className="rounded-xl border border-dashed p-8 text-center" style={{ borderColor: C.border }}>
+                  <p className="text-[12px] mb-1" style={{ color: C.textMid }}>No patterns analyzed yet.</p>
+                  <p className="text-[10px]" style={{ color: C.textMuted }}>Patterns emerge from published production signals over time.</p>
+                </div>
+              )}
               {PATTERNS.map((pat) => {
                 const Icon = pat.icon
                 const isOpen = expandedPattern === pat.category

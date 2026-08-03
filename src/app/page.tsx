@@ -222,22 +222,7 @@ interface Recommendation {
   memoriesUsed: string[]
 }
 
-const SAMPLE_RECOMMENDATIONS: Recommendation[] = [
-  {
-    type: "continue_thread",
-    title: "The Founder Who Became the System",
-    argument: "The Man Who Carried a City ends with the child lifting the case. What happens when the city outgrows the child?",
-    why: "Story thread 'The Founder Must Become Unnecessary' has one published post and an unresolved question: what does the founder do after the weight transfers?",
-    memoriesUsed: ["Canon Scene 003", "Story thread: Founder independence", "Symbol: case/container"],
-  },
-  {
-    type: "reuse_character",
-    title: "The Mapmaker Returns",
-    argument: "The mapmaker from 'Living Roads' could anchor a post about planning vs. preparedness.",
-    why: "This character has one appearance and strong visual identity. Audience response to the first film was positive.",
-    memoriesUsed: ["Character: The Mapmaker", "Visual language: Transit blue", "Symbol: Map"],
-  },
-]
+// Recommendations are derived at render time from real productions — no static data
 
 function RecommendationCard({ rec }: { rec: Recommendation }) {
   const router = useRouter()
@@ -577,15 +562,16 @@ export default function StudioHomePage() {
                       )}
                     </div>
                     <div className="flex flex-wrap gap-1 mb-4">
-                      <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(47,98,216,0.06)", color: "#2F62D8" }}>
-                        Canon Scene 003
-                      </span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(194,154,91,0.08)", color: "#C29A5B" }}>
-                        World Bible v1
-                      </span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(194,154,91,0.08)", color: "#C29A5B" }}>
-                        Spirit First
-                      </span>
+                      {(nowShowing.activeWorldRules ?? []).slice(0, 3).map((rule) => (
+                        <span key={rule} className="text-[9px] px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(47,98,216,0.06)", color: "#2F62D8" }}>
+                          {rule}
+                        </span>
+                      ))}
+                      {nowShowing.worldBibleVersion && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(194,154,91,0.08)", color: "#C29A5B" }}>
+                          World Bible {nowShowing.worldBibleVersion}
+                        </span>
+                      )}
                     </div>
 
                     {/* CTA — single primary, clean hierarchy */}
@@ -693,9 +679,20 @@ export default function StudioHomePage() {
               </div>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
-              {SAMPLE_RECOMMENDATIONS.map((rec, i) => (
-                <RecommendationCard key={i} rec={rec} />
+              {productions.filter(p => p.gates.film?.status === "approved" || p.gates.concept?.status === "approved").slice(0, 2).map((p, i) => (
+                <RecommendationCard key={i} rec={{
+                  type: i === 0 ? "continue_thread" : "reuse_character",
+                  title: `Next: ${p.title}`,
+                  argument: p.spine?.deeperTruth ?? p.sourceThought.slice(0, 100),
+                  why: `This production is at the ${p.gates.film?.status === "approved" ? "film" : "concept"} stage — ready for the next chapter.`,
+                  memoriesUsed: (p.activeWorldRules ?? []).slice(0, 3),
+                }} />
               ))}
+              {productions.filter(p => p.gates.film?.status === "approved" || p.gates.concept?.status === "approved").length === 0 && (
+                <div className="col-span-2 rounded-lg border border-dashed p-6 text-center" style={{ borderColor: "#DDD8CE" }}>
+                  <p className="text-[12px]" style={{ color: "#8A8578" }}>Recommendations will appear here once you have productions with approved gates.</p>
+                </div>
+              )}
             </div>
           </section>
 

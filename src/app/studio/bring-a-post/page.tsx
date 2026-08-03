@@ -55,13 +55,8 @@ const FILM_INTENTIONS = [
   "Leave a lasting image",
 ]
 
-const SAMPLE_MEMORIES = [
-  { label: "Related post", detail: "The danger of building a world that cannot function without you", source: "Published 2026-07-28" },
-  { label: "Active story thread", detail: "The Founder Must Become Unnecessary", source: "World Bible" },
-  { label: "Existing character", detail: "The Man — charcoal coat, leather case, determined stride", source: "Canon Scene 003" },
-  { label: "Relevant symbol", detail: "Case/container — city as responsibility made visible", source: "World Bible" },
-  { label: "Prior correction", detail: "Avoid literal visuals — lean on metaphor", source: "Production lesson" },
-]
+// Memories are derived from the World Bible store at render time — no static seeds
+const SAMPLE_MEMORIES: { label: string; detail: string; source: string }[] = []
 
 const PLAN_STEPS = [
   "Strengthen post",
@@ -419,6 +414,12 @@ export default function BringAPostPage() {
               </div>
 
               <div className="space-y-2">
+                {SAMPLE_MEMORIES.length === 0 && (
+                  <div className="rounded-lg border border-dashed p-6 text-center" style={{ borderColor: "#DDD8CE" }}>
+                    <p className="text-[12px]" style={{ color: "#8A8578" }}>No World Bible memories connected yet.</p>
+                    <p className="text-[10px] mt-1" style={{ color: "#8A8578" }}>As your World Bible grows, relevant memories will surface here.</p>
+                  </div>
+                )}
                 {SAMPLE_MEMORIES.map((mem, idx) => {
                   const selected = memoriesToUse.has(idx)
                   return (

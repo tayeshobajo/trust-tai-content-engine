@@ -46,70 +46,20 @@ const C = {
 // THREAD DATA (canonical sample — in production this loads by [id])
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const THREADS = [
-  {
-    id: "founder-unnecessary",
-    title: "The Founder Must Become Unnecessary",
-    premise: "The highest form of leadership is building something that no longer needs you. Every system a founder creates either extends their necessity or ends it.",
-    openQuestion: "What does the founder do after the weight transfers? The Man Who Carried a City ended with the child lifting the case. The next chapter is silence — and what fills it.",
-    nextChapter: "A post about the specific moment a founder realizes the thing they built is working without them — and the grief and pride that arrive at the same time.",
-    publishedPosts: [
-      { title: "The Man Who Carried a City", date: "2026-07-28", excerpt: "In the Trust Tai world, every responsibility a person accepts becomes a real structure inside a small case they carry.", productionId: "prod-pilot-city-001" },
-      { title: "Build for Absence", date: "2026-08-01", excerpt: "Cloud-first is not an upgrade. It is a design principle. And every time we skip it, we pay in fragility dressed up as 'working.'", productionId: null },
-    ],
-    activeProductions: [
-      { title: "The Founder Who Became the System", stage: "Idea", productionId: null },
-    ],
-    characters: ["The Architect", "The Child"],
-    symbols: ["The case / container", "The city at first light"],
-    unresolved: [
-      "What does the protagonist look like after the weight is gone? Lighter? Lost?",
-      "Is there a character who never transfers the weight — what becomes of them?",
-    ],
-    signals: [
-      { type: "saves", note: "The Man Who Carried a City had 4.2% save rate — highest in history." },
-      { type: "comments", note: "3 separate comments asking 'what happens next' — direct thread continuation signal." },
-    ],
-  },
-  {
-    id: "hidden-systems",
-    title: "Hidden Systems / Visible Symptoms",
-    premise: "What we see — the scraper that fails, the deal that stalls, the client who goes quiet — is never the problem. The problem is always the system underneath. Every post in this thread teaches the diagnosis.",
-    openQuestion: "The thread has named the disease well. What's the cure that isn't just 'build better systems'? The counter-thread might be: what systems cannot hold.",
-    nextChapter: "A post about the one thing you can't systematize — and why trying costs more than admitting it.",
-    publishedPosts: [
-      { title: "The Hidden Cost of Convenience", date: "2026-07-14", excerpt: "Convenience is a tax on future clarity. Every shortcut builds a system that runs on hope.", productionId: null },
-      { title: "What the Silence Means", date: "2026-06-20", excerpt: "When a client goes quiet, it's never about the invoice.", productionId: null },
-    ],
-    activeProductions: [],
-    characters: ["The Architect"],
-    symbols: ["The laptop", "Fiber-optic threads", "The tilted office"],
-    unresolved: [
-      "What is the emotional arc of someone who finally sees the system under their symptom?",
-    ],
-    signals: [
-      { type: "questions", note: "Recurring question: 'How do I find the system under the symptom?' — potential post topic." },
-    ],
-  },
-  {
-    id: "value-before-price",
-    title: "Value Before Price",
-    premise: "Every pricing conversation that goes wrong started before the pricing conversation. The client who haggles never understood the value. The client who understood the value never haggles.",
-    openQuestion: "What does it look like when a founder chooses dignity over the deal — and the right client appears because of it?",
-    nextChapter: "The client who read the room — a post about recognition as the highest sales skill.",
-    publishedPosts: [
-      { title: "The Client Who Paid Without Being Asked", date: "2026-05-30", excerpt: "The best clients arrive already knowing. Your job is to confirm what they already believe.", productionId: null },
-    ],
-    activeProductions: [],
-    characters: [],
-    symbols: ["The table", "Silence in a sales conversation"],
-    unresolved: [
-      "What separates recognition from manipulation?",
-      "Is there a post about clients who taught Tai what value actually means?",
-    ],
-    signals: [],
-  },
-]
+// Threads data model is not yet persisted — empty until studio-store supports it
+const THREADS: {
+  id: string
+  title: string
+  premise: string
+  openQuestion: string
+  nextChapter: string
+  publishedPosts: { title: string; date: string; excerpt: string; productionId: string | null }[]
+  activeProductions: { title: string; stage: string; productionId: string | null }[]
+  characters: string[]
+  symbols: string[]
+  unresolved: string[]
+  signals: { type: string; note: string }[]
+}[] = []
 
 type ThreadView = "overview" | "posts" | "productions" | "characters" | "questions"
 
@@ -120,7 +70,7 @@ type ThreadView = "overview" | "posts" | "productions" | "characters" | "questio
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function StoryThreadPage() {
-  const [selectedThread, setSelectedThread] = useState(THREADS[0])
+  const [selectedThread, setSelectedThread] = useState(THREADS[0] ?? null)
   const [activeView, setActiveView] = useState<ThreadView>("overview")
 
   const VIEWS: { key: ThreadView; label: string }[] = [
@@ -156,6 +106,9 @@ export default function StoryThreadPage() {
             {/* ─── LEFT: THREAD LIST ─── */}
             <div className="space-y-2">
               <p className="text-[9px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: C.textMuted }}>Active threads</p>
+              {THREADS.length === 0 && (
+                <p className="text-[10px]" style={{ color: C.textMuted }}>No threads yet.</p>
+              )}
               {THREADS.map((thread) => (
                 <button
                   key={thread.id}
@@ -186,7 +139,14 @@ export default function StoryThreadPage() {
 
             {/* ─── RIGHT: THREAD DETAIL ─── */}
             <div>
-              {/* Thread header */}
+              {!selectedThread ? (
+                <div className="rounded-xl border border-dashed p-12 text-center" style={{ borderColor: C.border }}>
+                  <GitBranch className="w-8 h-8 mx-auto mb-3" style={{ color: C.textMuted }} />
+                  <p className="text-[13px] font-medium mb-1" style={{ color: C.textMid }}>No story threads yet</p>
+                  <p className="text-[11px]" style={{ color: C.textMuted }}>Threads emerge as you publish productions and the World Bible detects recurring themes.</p>
+                </div>
+              ) : (
+              <> {/* Thread header */}
               <div className="mb-5">
                 <div className="flex items-center gap-2 mb-2">
                   <GitBranch className="w-4 h-4" style={{ color: C.red }} />
@@ -380,6 +340,8 @@ export default function StoryThreadPage() {
                     </button>
                   </div>
                 </div>
+              )}
+              </>
               )}
             </div>
           </div>
