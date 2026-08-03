@@ -7,6 +7,7 @@ import Shell from "@/components/Shell"
 import {
   getProduction,
   updateProduction,
+  markPublished,
   PRODUCTIONS_CHANGED_EVENT,
 } from "@/lib/studio-store"
 import type { Production, ConceptDirection, ConceptKey } from "@/data/studio"
@@ -184,13 +185,13 @@ export default function ProductionWorkspacePage() {
 
         {/* ═══ CONTENT ═══ */}
         <div className="max-w-[1400px] mx-auto px-6 pb-20">
-          {activeTab === "concept" && <ConceptTab production={production} />}
-          {activeTab === "post" && <PostTab production={production} />}
-          {activeTab === "script" && <ScriptTab production={production} />}
-          {activeTab === "frames" && <FramesTab production={production} />}
-          {activeTab === "scenes" && <ScenesTab production={production} />}
-          {activeTab === "edit" && <EditTab production={production} />}
-          {activeTab === "package" && <PackageTab production={production} />}
+          {activeTab === "concept" && <ConceptTab production={production} onTabChange={setActiveTab} />}
+          {activeTab === "post" && <PostTab production={production} onTabChange={setActiveTab} />}
+          {activeTab === "script" && <ScriptTab production={production} onTabChange={setActiveTab} />}
+          {activeTab === "frames" && <FramesTab production={production} onTabChange={setActiveTab} />}
+          {activeTab === "scenes" && <ScenesTab production={production} onTabChange={setActiveTab} />}
+          {activeTab === "edit" && <EditTab production={production} onTabChange={setActiveTab} />}
+          {activeTab === "package" && <PackageTab production={production} onTabChange={setActiveTab} />}
           {activeTab === "memory" && <MemoryTab production={production} />}
         </div>
       </div>
@@ -327,7 +328,7 @@ function TabBar({
 // CONCEPT TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function ConceptTab({ production }: { production: Production }) {
+function ConceptTab({ production, onTabChange }: { production: Production; onTabChange: (t: TabKey) => void }) {
   const [selectedKey, setSelectedKey] = useState<ConceptKey | null>(
     production.film.selectedConcept
   )
@@ -453,6 +454,7 @@ function ConceptTab({ production }: { production: Production }) {
                   concept: { key: "concept", status: "approved" as const },
                 },
               }))
+              onTabChange("script")
             }
           }}
         />
@@ -463,7 +465,18 @@ function ConceptTab({ production }: { production: Production }) {
         <ProductionSummaryCard production={production} />
         <ConceptInsightPanel production={production} />
         <ConceptDetailPanel production={production} />
-        <ConceptActionsPanel />
+        <ConceptActionsPanel
+          onApprove={() => {
+            if (selectedKey) {
+              updateProduction(production.id, (p) => ({
+                ...p,
+                film: { ...p.film, selectedConcept: selectedKey },
+                gates: { ...p.gates, concept: { key: "concept", status: "approved" as const } },
+              }))
+            }
+            onTabChange("script")
+          }}
+        />
       </div>
     </div>
   )
@@ -849,12 +862,12 @@ function ConceptDetailPanel({ }: { production: Production }) {
   )
 }
 
-function ConceptActionsPanel() {
+function ConceptActionsPanel({ onApprove }: { onApprove: () => void }) {
   const actions = [
-    { icon: Check, label: "Approve concept and build script", color: COLORS.green },
-    { icon: RefreshCw, label: "Request new directions", color: COLORS.blue },
-    { icon: Bookmark, label: "Save for later", color: COLORS.gold },
-    { icon: X, label: "Reject with reason", color: "#E53E3E" },
+    { icon: Check, label: "Approve concept and build script", color: COLORS.green, handler: onApprove },
+    { icon: RefreshCw, label: "Request new directions", color: COLORS.blue, handler: () => {} },
+    { icon: Bookmark, label: "Save for later", color: COLORS.gold, handler: () => {} },
+    { icon: X, label: "Reject with reason", color: "#E53E3E", handler: () => {} },
   ]
 
   return (
@@ -874,6 +887,7 @@ function ConceptActionsPanel() {
           return (
             <button
               key={i}
+              onClick={action.handler}
               className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors hover:bg-black/5"
             >
               <Icon className="w-3 h-3 flex-shrink-0" style={{ color: action.color }} />
@@ -941,7 +955,7 @@ const QUICK_ACTIONS = [
   "Add a beat of silence",
 ]
 
-function ScriptTab({ production }: { production: Production }) {
+function ScriptTab({ production, onTabChange }: { production: Production; onTabChange: (t: TabKey) => void }) {
   const [subTab, setSubTab] = useState<"scenes" | "narration" | "timeline" | "postmap">("scenes")
   const shots = production.film.shots
   const totalDuration = shots.reduce((sum, s) => sum + s.durationSec, 0)
@@ -951,9 +965,10 @@ function ScriptTab({ production }: { production: Production }) {
       ...p,
       gates: {
         ...p.gates,
-        concept: { key: "concept", status: "approved" as const },
+        keyframes: { key: "keyframes", status: "approved" as const },
       },
     }))
+    onTabChange("frames")
   }
 
   return (
@@ -1555,7 +1570,7 @@ const CONTINUITY_CHECKS = [
   { label: "Scene 04 scale mismatch", status: "warning" as const },
 ]
 
-function FramesTab({ production }: { production: Production }) {
+function FramesTab({ production, onTabChange }: { production: Production; onTabChange: (t: TabKey) => void }) {
   const [selectedFrame, setSelectedFrame] = useState(2) // Scene 03 by default
   const [viewMode, setViewMode] = useState<"board" | "list">("board")
   const [frameStatuses, setFrameStatuses] = useState<("approved" | "review" | "draft")[]>([
@@ -1577,6 +1592,7 @@ function FramesTab({ production }: { production: Production }) {
       ...p,
       gates: { ...p.gates, keyframes: { key: "keyframes", status: "approved" as const } },
     }))
+    onTabChange("scenes")
   }
 
   const shots = production.film.shots.slice(0, 6)
@@ -2193,13 +2209,23 @@ const SEQUENCE_NODES = [
   { label: "06", status: "queued" as const },
 ]
 
-function ScenesTab({ production }: { production: Production }) {
+function ScenesTab({ production, onTabChange }: { production: Production; onTabChange: (t: TabKey) => void }) {
   const [selectedScene, setSelectedScene] = useState(0)
   const [selectedTake, setSelectedTake] = useState<string | null>("A")
+  const [allScenesApproved, setAllScenesApproved] = useState(false)
   const shots = production.film.shots.slice(0, 6)
   const totalDuration = shots.reduce((sum, s) => sum + s.durationSec, 0)
   const currentTakes = TAKES_DATA[selectedScene] || []
   const generatedCount = SEQUENCE_NODES.filter((s) => s.status === "generated").length
+
+  function approveAllScenes() {
+    setAllScenesApproved(true)
+    updateProduction(production.id, (p) => ({
+      ...p,
+      gates: { ...p.gates, film: { key: "film", status: "approved" as const } },
+    }))
+    onTabChange("edit")
+  }
 
   const sceneStatuses = ["generated", "generated", "generating", "generated", "queued", "queued"] as const
 
@@ -2607,6 +2633,7 @@ function ScenesTab({ production }: { production: Production }) {
               </p>
             </div>
             <button
+              onClick={approveAllScenes}
               className="flex items-center gap-1 text-[10px] font-semibold px-3 py-1.5 rounded-full transition-opacity hover:opacity-90"
               style={{ backgroundColor: COLORS.gold, color: "#FFFFFF" }}
             >
@@ -2702,7 +2729,7 @@ const VERSION_HISTORY = [
 
 const SPEED_OPTIONS = ["0.5x", "0.75x", "1x", "1.25x", "1.5x", "2x"]
 
-function EditTab({ }: { production: Production }) {
+function EditTab({ production, onTabChange }: { production: Production; onTabChange: (t: TabKey) => void }) {
   const [selectedClip, setSelectedClip] = useState(4) // Scene 04 selected by default
   const [snapEnabled, setSnapEnabled] = useState(true)
   const [colorEnabled, setColorEnabled] = useState(true)
@@ -3224,7 +3251,11 @@ function EditTab({ }: { production: Production }) {
           <div className="rounded-xl border p-3" style={{ backgroundColor: "rgba(194,154,91,0.05)", borderColor: "rgba(194,154,91,0.2)" }}>
             <p className="font-serif text-[12px] mb-0.5" style={{ color: COLORS.textDark }}>Ready to finalize</p>
             <p className="text-[9px] mb-2.5" style={{ color: COLORS.textMid }}>The edit is ready for review and export.</p>
-            <button className="flex items-center justify-center gap-1 w-full text-[10px] font-semibold px-3 py-2 rounded-lg transition-opacity hover:opacity-90 mb-1.5" style={{ backgroundColor: COLORS.navy, color: "#FFFFFF" }}>
+            <button
+              onClick={() => onTabChange("package")}
+              className="flex items-center justify-center gap-1 w-full text-[10px] font-semibold px-3 py-2 rounded-lg transition-opacity hover:opacity-90 mb-1.5"
+              style={{ backgroundColor: COLORS.navy, color: "#FFFFFF" }}
+            >
               Preview &amp; export package
               <ArrowRight className="w-3 h-3" />
             </button>
@@ -3444,7 +3475,7 @@ const EXPORT_HISTORY = [
   { format: "16:9 Landscape", size: "224 MB", time: "3m 10s", date: "—", status: "pending" as const },
 ]
 
-function PackageTab({ production }: { production: Production }) {
+function PackageTab({ production, onTabChange: _onTabChange }: { production: Production; onTabChange: (t: TabKey) => void }) {
   const [selectedFormat, setSelectedFormat] = useState("9:16")
   const [postEdited, setPostEdited] = useState(LINKEDIN_POST_PREVIEW)
   const [captionEdited, setCaptionEdited] = useState(CAPTION_PREVIEW)
@@ -3765,6 +3796,7 @@ function PackageTab({ production }: { production: Production }) {
             </p>
             <div className="space-y-2">
               <button
+                onClick={() => markPublished(production.id)}
                 className="flex items-center justify-center gap-1.5 w-full text-[11px] font-semibold px-3 py-2 rounded-lg transition-opacity hover:opacity-90"
                 style={{ backgroundColor: COLORS.navy, color: "#FFFFFF" }}
               >
@@ -3811,7 +3843,7 @@ const POST_HISTORY = [
   { version: "v1 — Original", date: "Today, 10:07 AM", note: "Source post as imported" },
 ]
 
-function PostTab({ production }: { production: Production }) {
+function PostTab({ production, onTabChange }: { production: Production; onTabChange: (t: TabKey) => void }) {
   const [view, setView] = useState<PostView>("original")
   const [editing, setEditing] = useState(false)
   const [postText, setPostText] = useState(
@@ -3916,7 +3948,13 @@ function PostTab({ production }: { production: Production }) {
                 </div>
                 {!approved ? (
                   <button
-                    onClick={() => setApproved(true)}
+                    onClick={() => {
+                      setApproved(true)
+                      updateProduction(production.id, (p) => ({
+                        ...p,
+                        gates: { ...p.gates, post: { key: "post", status: "approved" as const } },
+                      }))
+                    }}
                     className="flex items-center gap-1.5 text-[10px] font-semibold px-4 py-1.5 rounded-lg transition-opacity hover:opacity-90"
                     style={{ backgroundColor: COLORS.navy, color: "#FFFFFF" }}
                   >
