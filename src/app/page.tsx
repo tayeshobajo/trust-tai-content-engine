@@ -473,7 +473,7 @@ export default function StudioHomePage() {
             </button>
             <StudioActivityIndicator active={hasActivity} />
             <button
-              onClick={() => router.push("/thinking-room/new")}
+              onClick={() => router.push("/studio/bring-a-post")}
               className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded transition-opacity hover:opacity-90"
               style={{ backgroundColor: "#1A2332", color: "#FFFFFF" }}
             >
@@ -742,7 +742,7 @@ export default function StudioHomePage() {
                 Bring a LinkedIn post, a rough thought, or a voice note. The Studio will help you turn it into a cinematic film.
               </p>
               <button
-                onClick={() => router.push("/thinking-room/new")}
+                onClick={() => router.push("/studio/bring-a-post")}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
                 style={{ backgroundColor: "#1A2332", color: "#FFFFFF" }}
               >
