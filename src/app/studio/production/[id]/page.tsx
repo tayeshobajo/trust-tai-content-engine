@@ -36,6 +36,14 @@ import {
   Bookmark,
   RefreshCw,
   X,
+  GripVertical,
+  MoreHorizontal,
+  Mic,
+  Plus,
+  GitCompare,
+  History,
+  ChevronDown,
+  Waves,
 } from "lucide-react"
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -152,13 +160,7 @@ export default function ProductionWorkspacePage() {
               icon={FileText}
             />
           )}
-          {activeTab === "script" && (
-            <PlaceholderTab
-              title="Script"
-              subtitle="Treatment, shot list, and narration."
-              icon={PenLine}
-            />
-          )}
+          {activeTab === "script" && <ScriptTab production={production} />}
           {activeTab === "frames" && (
             <PlaceholderTab
               title="Frames"
@@ -888,6 +890,614 @@ function ConceptActionsPanel() {
       </div>
     </div>
   )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCRIPT TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Scene metadata for display — mapped from shot data
+const SCENE_NAMES = [
+  "The Catch",
+  "The Reveal",
+  "The Marble",
+  "The Descent",
+  "The Turn",
+  "The Settle",
+]
+
+const POST_CONNECTIONS = [
+  "Intro – First paragraph (The visible problem everyone reacts to.)",
+  "Paragraph 2 (The hidden reality behind the problem.)",
+  "Paragraph 3 (The answers we reach for first.)",
+  "Paragraph 4–5 (The choice to go deeper instead of reacting.)",
+  "Paragraph 6 (The one thing that changes everything.)",
+  "Closing – Final paragraph (The lesson and the freedom it creates.)",
+]
+
+const NARRATION_LINES = [
+  "The cup slides. He catches it. Good save.",
+  "Pull back. The whole office is tilted. Everyone is catching something.",
+  "The first answer is the visible one.",
+  "He goes beneath the surface.",
+  "Find the one turn.",
+  "Movement is not always progress.",
+]
+
+const CONTINUITY_ROWS = [
+  "Character consistent",
+  "World consistent",
+  "Time & lighting consistent",
+  "Symbol usage consistent",
+]
+
+const WHAT_FILM_IS_NOT = [
+  "It is not about working harder.",
+  "It is not a literal office story.",
+  "It is not a quick tip.",
+]
+
+const QUICK_ACTIONS = [
+  "Shorten narration",
+  "More visual, less VO",
+  "Stronger opening",
+  "Change ending",
+  "Add a beat of silence",
+]
+
+function ScriptTab({ production }: { production: Production }) {
+  const [subTab, setSubTab] = useState<"scenes" | "narration" | "timeline" | "postmap">("scenes")
+  const shots = production.film.shots
+  const totalDuration = shots.reduce((sum, s) => sum + s.durationSec, 0)
+  const narrationWordCount = NARRATION_LINES.join(" ").split(/\s+/).filter(Boolean).length
+  function approveScript() {
+    updateProduction(production.id, (p) => ({
+      ...p,
+      gates: {
+        ...p.gates,
+        concept: { key: "concept", status: "approved" as const },
+      },
+    }))
+  }
+
+  return (
+    <div className="pt-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
+        {/* ═══ MAIN COLUMN ═══ */}
+        <div className="space-y-5">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="font-serif text-xl" style={{ color: COLORS.textDark }}>
+                <span style={{ color: COLORS.textMuted }}>3.</span> Write the story the film will tell
+              </h1>
+              <p className="text-[11px] mt-0.5" style={{ color: COLORS.textMid }}>
+                The script translates the post&apos;s argument into a cinematic experience.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+                <GitCompare className="w-3 h-3" />
+                Compare versions
+              </button>
+              <button className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+                <History className="w-3 h-3" />
+                Script history
+              </button>
+              <div className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded border cursor-pointer" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+                <span>Script version</span>
+                <span className="font-semibold" style={{ color: COLORS.textDark }}>V1 (Studio draft)</span>
+                <ChevronDown className="w-3 h-3" />
+              </div>
+            </div>
+          </div>
+
+          {/* Sub-tabs */}
+          <div className="flex items-center gap-4 border-b pb-1" style={{ borderColor: COLORS.borderLight }}>
+            {([
+              { key: "scenes", label: "Scene by scene" },
+              { key: "narration", label: "Narration only" },
+              { key: "timeline", label: "Timeline" },
+              { key: "postmap", label: "Post map" },
+            ] as const).map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setSubTab(t.key)}
+                className="text-[11px] font-semibold pb-1.5 transition-colors relative"
+                style={{ color: subTab === t.key ? COLORS.navy : COLORS.textMuted }}
+              >
+                {t.label}
+                {subTab === t.key && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ backgroundColor: COLORS.gold }} />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Scene Table */}
+          {subTab === "scenes" && (
+            <SceneTable shots={shots} totalDuration={totalDuration} />
+          )}
+          {subTab === "narration" && <NarrationOnly shots={shots} />}
+          {subTab === "timeline" && <TimelineView shots={shots} totalDuration={totalDuration} />}
+          {subTab === "postmap" && <PostMapView shots={shots} />}
+
+          {/* Lower panels: Script Notes + Continuity */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Script Notes */}
+            <div className="rounded-xl border p-4" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+              <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-2" style={{ color: COLORS.textMid }}>
+                Script notes
+              </p>
+              <p className="text-[12px] leading-relaxed mb-3" style={{ color: COLORS.textDark }}>
+                This script stays faithful to the post&apos;s argument while making it felt, not just heard.
+              </p>
+              <button className="flex items-center gap-1 text-[10px] font-medium transition-colors hover:underline" style={{ color: COLORS.blue }}>
+                <PenLine className="w-3 h-3" />
+                Add note
+              </button>
+            </div>
+
+            {/* Continuity Check */}
+            <div className="rounded-xl border p-4" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+              <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-2" style={{ color: COLORS.textMid }}>
+                Continuity check
+              </p>
+              <div className="space-y-2">
+                {CONTINUITY_ROWS.map((row) => (
+                  <div key={row} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Check className="w-3 h-3" style={{ color: COLORS.green }} />
+                      <span className="text-[11px]" style={{ color: COLORS.textDark }}>{row}</span>
+                    </div>
+                    <button className="text-[10px] font-medium transition-colors hover:underline" style={{ color: COLORS.blue }}>
+                      View
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══ RIGHT SIDEBAR ═══ */}
+        <div className="space-y-4">
+          {/* Script Intelligence */}
+          <ScriptIntelligencePanel
+            totalDuration={totalDuration}
+            narrationWordCount={narrationWordCount}
+            shotCount={shots.length}
+          />
+
+          {/* Ready for Frames */}
+          <div
+            className="rounded-xl border p-4"
+            style={{
+              backgroundColor: "rgba(194,154,91,0.05)",
+              borderColor: "rgba(194,154,91,0.2)",
+            }}
+          >
+            <p className="font-serif text-sm mb-1" style={{ color: COLORS.textDark }}>
+              Ready for frames
+            </p>
+            <p className="text-[10px] mb-3" style={{ color: COLORS.textMid }}>
+              The script is ready to be visualized.
+            </p>
+            <div className="space-y-2">
+              <button
+                onClick={approveScript}
+                className="flex items-center justify-center gap-1.5 w-full text-[11px] font-semibold px-3 py-2 rounded-lg transition-opacity hover:opacity-90"
+                style={{ backgroundColor: COLORS.navy, color: "#FFFFFF" }}
+              >
+                Approve script &amp; build frames
+                <ArrowRight className="w-3 h-3" />
+              </button>
+              <button className="flex items-center justify-center gap-1.5 w-full text-[11px] font-medium px-3 py-2 rounded-lg border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+                <RefreshCw className="w-3 h-3" />
+                Request revisions
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══ BOTTOM COMMAND BAR ═══ */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-30 flex items-center gap-3 px-6 py-3 border-t md:ml-[140px]"
+        style={{ backgroundColor: COLORS.navy, borderColor: "rgba(255,255,255,0.08)" }}
+      >
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Waves className="w-4 h-4" style={{ color: "rgba(255,255,255,0.5)" }} />
+          <div>
+            <p className="text-[10px] font-semibold text-white">Need changes?</p>
+            <p className="text-[9px]" style={{ color: "rgba(255,255,255,0.5)" }}>Tell the Studio what to adjust.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 flex-1 overflow-x-auto">
+          {QUICK_ACTIONS.map((action) => (
+            <button
+              key={action}
+              className="text-[10px] font-medium px-2.5 py-1 rounded-full border whitespace-nowrap transition-colors hover:bg-white/10"
+              style={{ borderColor: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.8)" }}
+            >
+              {action}
+            </button>
+          ))}
+          <button className="text-[10px] font-medium px-2 py-1 rounded-full border whitespace-nowrap transition-colors hover:bg-white/10" style={{ borderColor: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)" }}>
+            ⋯
+          </button>
+        </div>
+        <button
+          className="flex items-center gap-1 text-[10px] font-semibold px-3 py-1.5 rounded-full transition-opacity hover:opacity-90 flex-shrink-0"
+          style={{ backgroundColor: COLORS.gold, color: "#FFFFFF" }}
+        >
+          <Sparkles className="w-3 h-3" />
+          Ask anything
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Scene Table ─────────────────────────────────────────────────────────────
+
+function SceneTable({ shots, totalDuration }: { shots: Production["film"]["shots"]; totalDuration: number }) {
+  // Precompute cumulative timecodes
+  const rows = shots.slice(0, 6).map((shot, idx) => {
+    const offset = shots.slice(0, idx).reduce((sum, s) => sum + s.durationSec, 0)
+    return { shot, idx, startTime: offset, endTime: offset + shot.durationSec }
+  })
+
+  return (
+    <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+      {/* Column headers */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: COLORS.borderLight, backgroundColor: "rgba(138,133,120,0.03)" }}>
+        <div className="w-4 flex-shrink-0" />
+        <div className="w-12 flex-shrink-0" />
+        <p className="text-[8px] font-bold tracking-[0.1em] uppercase flex-1" style={{ color: COLORS.textMuted }}>Scene</p>
+        <p className="text-[8px] font-bold tracking-[0.1em] uppercase flex-[2]" style={{ color: COLORS.textMuted }}>Visual action</p>
+        <p className="text-[8px] font-bold tracking-[0.1em] uppercase flex-[2]" style={{ color: COLORS.textMuted }}>Narration (VO)</p>
+        <p className="text-[8px] font-bold tracking-[0.1em] uppercase w-12 text-center" style={{ color: COLORS.textMuted }}>Duration</p>
+        <p className="text-[8px] font-bold tracking-[0.1em] uppercase flex-[1.5]" style={{ color: COLORS.textMuted }}>Purpose</p>
+        <p className="text-[8px] font-bold tracking-[0.1em] uppercase flex-[1.5]" style={{ color: COLORS.textMuted }}>Post connection</p>
+        <div className="w-6 flex-shrink-0" />
+      </div>
+
+      {/* Scene rows */}
+      <div className="divide-y" style={{ borderColor: COLORS.borderLight }}>
+        {rows.map(({ shot, idx, startTime, endTime }) => {
+          const sceneName = SCENE_NAMES[idx] || `Scene ${idx + 1}`
+          const narration = NARRATION_LINES[idx] || ""
+          const postConn = POST_CONNECTIONS[idx] || ""
+
+          return (
+            <div
+              key={shot.no}
+              className="flex items-start gap-2 px-3 py-2.5 transition-colors hover:bg-black/[0.015]"
+              style={{ borderColor: COLORS.borderLight }}
+            >
+              {/* Drag handle */}
+              <div className="w-4 flex-shrink-0 pt-1">
+                <GripVertical className="w-3 h-3" style={{ color: COLORS.border }} />
+              </div>
+
+              {/* Thumbnail */}
+              <div
+                className="w-12 h-12 rounded-md flex-shrink-0 flex items-center justify-center"
+                style={{ background: `linear-gradient(135deg, ${COLORS.navy}10, ${COLORS.gold}10)` }}
+              >
+                <FilmIcon className="w-5 h-5" style={{ color: `${COLORS.navy}25` }} />
+              </div>
+
+              {/* Scene number + name */}
+              <div className="flex-1 min-w-0 pt-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] font-bold" style={{ color: COLORS.textMuted }}>
+                    {String(idx + 1).padStart(2, "0")}
+                  </span>
+                  <p className="text-[11px] font-semibold" style={{ color: COLORS.textDark }}>
+                    {sceneName}
+                  </p>
+                </div>
+                <p className="text-[9px] mt-0.5" style={{ color: COLORS.textMuted }}>
+                  {formatTimecode(startTime)}–{formatTimecode(endTime)}
+                </p>
+              </div>
+
+              {/* Visual action */}
+              <div className="flex-[2] min-w-0 pt-0.5">
+                <p className="text-[10px] leading-snug" style={{ color: COLORS.textDark }}>
+                  {shot.description}
+                </p>
+              </div>
+
+              {/* Narration */}
+              <div className="flex-[2] min-w-0 pt-0.5">
+                <p className="text-[10px] leading-snug italic" style={{ color: COLORS.textMid }}>
+                  {narration || "—"}
+                </p>
+              </div>
+
+              {/* Duration */}
+              <div className="w-12 text-center pt-0.5">
+                <span
+                  className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
+                  style={{ backgroundColor: "rgba(47,98,216,0.06)", color: COLORS.blue }}
+                >
+                  {shot.durationSec}s
+                </span>
+              </div>
+
+              {/* Purpose */}
+              <div className="flex-[1.5] min-w-0 pt-0.5">
+                <p className="text-[10px] leading-snug" style={{ color: COLORS.textMid }}>
+                  {shot.purpose}
+                </p>
+              </div>
+
+              {/* Post connection */}
+              <div className="flex-[1.5] min-w-0 pt-0.5">
+                <p className="text-[10px] leading-snug" style={{ color: COLORS.textMuted }}>
+                  {postConn}
+                </p>
+              </div>
+
+              {/* Overflow */}
+              <div className="w-6 flex-shrink-0 pt-0.5">
+                <MoreHorizontal className="w-3 h-3" style={{ color: COLORS.textMuted }} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between px-3 py-2 border-t" style={{ borderColor: COLORS.borderLight, backgroundColor: "rgba(138,133,120,0.03)" }}>
+        <p className="text-[9px]" style={{ color: COLORS.textMuted }}>
+          {shots.slice(0, 6).length} scenes · {totalDuration}s total
+        </p>
+        <button className="flex items-center gap-1 text-[9px] font-medium transition-colors hover:underline" style={{ color: COLORS.blue }}>
+          <Plus className="w-3 h-3" />
+          Add scene
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Narration Only View ──────────────────────────────────────────────────────
+
+function NarrationOnly({ shots }: { shots: Production["film"]["shots"] }) {
+  return (
+    <div className="rounded-xl border p-4" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+      <div className="space-y-3">
+        {shots.slice(0, 6).map((shot, idx) => (
+          <div key={shot.no} className="flex items-start gap-3 pb-3 border-b last:border-0" style={{ borderColor: COLORS.borderLight }}>
+            <span className="text-[10px] font-bold pt-0.5" style={{ color: COLORS.textMuted, minWidth: 20 }}>
+              {String(idx + 1).padStart(2, "0")}
+            </span>
+            <div className="flex-1">
+              <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: COLORS.gold }}>
+                {SCENE_NAMES[idx] || `Scene ${idx + 1}`}
+              </p>
+              <p className="text-[12px] leading-relaxed font-serif italic" style={{ color: COLORS.textDark }}>
+                {NARRATION_LINES[idx] || ""}
+              </p>
+            </div>
+            <span className="text-[9px]" style={{ color: COLORS.textMuted }}>{shot.durationSec}s</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Timeline View ────────────────────────────────────────────────────────────
+
+function TimelineView({ shots, totalDuration }: { shots: Production["film"]["shots"]; totalDuration: number }) {
+  const rows = shots.slice(0, 6).map((shot, idx) => {
+    const offset = shots.slice(0, idx).reduce((sum, s) => sum + s.durationSec, 0)
+    return { shot, idx, startPct: (offset / totalDuration) * 100, widthPct: (shot.durationSec / totalDuration) * 100 }
+  })
+
+  return (
+    <div className="rounded-xl border p-4" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+      <div className="space-y-1">
+        {rows.map(({ shot, idx, startPct, widthPct }) => {
+          return (
+            <div key={shot.no} className="relative">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[9px] font-bold" style={{ color: COLORS.textMuted, minWidth: 20 }}>
+                  {String(idx + 1).padStart(2, "0")}
+                </span>
+                <span className="text-[10px] font-medium" style={{ color: COLORS.textDark }}>
+                  {SCENE_NAMES[idx] || `Scene ${idx + 1}`}
+                </span>
+                <span className="text-[9px]" style={{ color: COLORS.textMuted }}>{shot.durationSec}s</span>
+              </div>
+              <div className="relative h-5 rounded" style={{ backgroundColor: COLORS.borderLight }}>
+                <div
+                  className="absolute h-full rounded flex items-center px-1.5"
+                  style={{
+                    left: `${startPct}%`,
+                    width: `${widthPct}%`,
+                    backgroundColor: idx % 2 === 0 ? COLORS.blue : COLORS.gold,
+                    opacity: 0.75,
+                  }}
+                >
+                  <span className="text-[8px] font-semibold text-white truncate">
+                    {shot.purpose}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div className="flex items-center justify-between mt-3 pt-2 border-t" style={{ borderColor: COLORS.borderLight }}>
+        <p className="text-[9px]" style={{ color: COLORS.textMuted }}>0:00</p>
+        <p className="text-[9px]" style={{ color: COLORS.textMuted }}>{formatTimecode(totalDuration)}</p>
+      </div>
+    </div>
+  )
+}
+
+// ─── Post Map View ────────────────────────────────────────────────────────────
+
+function PostMapView({ shots }: { shots: Production["film"]["shots"] }) {
+  return (
+    <div className="rounded-xl border p-4" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+      <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: COLORS.textMid }}>
+        How each scene maps to the post
+      </p>
+      <div className="space-y-2">
+        {shots.slice(0, 6).map((shot, idx) => (
+          <div key={shot.no} className="flex items-start gap-3">
+            <div className="flex flex-col items-center">
+              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0" style={{ backgroundColor: COLORS.navy, color: "#FFFFFF" }}>
+                {idx + 1}
+              </div>
+              {idx < 5 && <div className="w-px h-6 mt-0.5" style={{ backgroundColor: COLORS.border }} />}
+            </div>
+            <div className="flex-1 pb-2">
+              <p className="text-[10px] font-semibold" style={{ color: COLORS.textDark }}>
+                {SCENE_NAMES[idx] || `Scene ${idx + 1}`}
+              </p>
+              <p className="text-[10px] mt-0.5" style={{ color: COLORS.textMid }}>
+                {POST_CONNECTIONS[idx] || ""}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Script Intelligence Panel ────────────────────────────────────────────────
+
+function ScriptIntelligencePanel({
+  totalDuration,
+  narrationWordCount,
+  shotCount,
+}: {
+  totalDuration: number
+  narrationWordCount: number
+  shotCount: number
+}) {
+  const visualPct = 78
+  const narrationPct = 22
+  const arcNodes = ["Recognition", "Discomfort", "Clarity", "Freedom"]
+
+  const metrics = [
+    { icon: Clock, label: "Total duration", value: `${totalDuration} seconds` },
+    { icon: PenLine, label: "Narration word count", value: `${narrationWordCount} words` },
+    { icon: Zap, label: "Pacing", value: "Balanced" },
+    { icon: FilmIcon, label: "Scenes", value: `${shotCount} scenes` },
+    { icon: Mic, label: "Silence moments", value: "1 intentional pause" },
+    { icon: Compass, label: "Complexity", value: "Medium" },
+  ]
+
+  return (
+    <div className="rounded-xl border p-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+      <div className="flex items-center gap-2 mb-3">
+        <Brain className="w-3.5 h-3.5" style={{ color: COLORS.gold }} />
+        <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.gold }}>
+          Script Intelligence
+        </p>
+      </div>
+      <p className="text-[10px] mb-3" style={{ color: COLORS.textMuted }}>How the script supports the post.</p>
+
+      {/* Metric rows */}
+      <div className="space-y-2 mb-3">
+        {metrics.map((m) => {
+          const Icon = m.icon
+          return (
+            <div key={m.label} className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Icon className="w-3 h-3" style={{ color: COLORS.textMuted }} />
+                <span className="text-[10px]" style={{ color: COLORS.textMuted }}>{m.label}</span>
+              </div>
+              <span className="text-[10px] font-semibold" style={{ color: COLORS.textDark }}>{m.value}</span>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Emotional arc */}
+      <div className="mb-3 pt-2 border-t" style={{ borderColor: COLORS.borderLight }}>
+        <p className="text-[9px] font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.textMuted }}>
+          Emotional arc
+        </p>
+        <p className="text-[10px] mb-2" style={{ color: COLORS.textDark }}>
+          {arcNodes.join(" → ")}
+        </p>
+        <div className="flex items-center gap-1">
+          {arcNodes.map((node, i) => (
+            <div key={node} className="flex items-center gap-1 flex-1">
+              <div className="flex flex-col items-center gap-0.5 flex-1">
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{
+                    backgroundColor: i === 0 || i === arcNodes.length - 1 ? COLORS.gold : COLORS.blue,
+                  }}
+                />
+                <span className="text-[7px] text-center leading-tight" style={{ color: COLORS.textMuted }}>{node}</span>
+              </div>
+              {i < arcNodes.length - 1 && (
+                <div className="flex-1 h-px" style={{ backgroundColor: COLORS.border }} />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Visual vs narration bar */}
+      <div className="mb-3 pt-2 border-t" style={{ borderColor: COLORS.borderLight }}>
+        <div className="flex items-center justify-between mb-1.5">
+          <p className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: COLORS.textMuted }}>
+            Visual vs narration
+          </p>
+          <p className="text-[9px]" style={{ color: COLORS.textDark }}>{visualPct}% / {narrationPct}%</p>
+        </div>
+        <div className="flex h-2 rounded-full overflow-hidden">
+          <div style={{ width: `${visualPct}%`, backgroundColor: COLORS.blue }} />
+          <div style={{ width: `${narrationPct}%`, backgroundColor: COLORS.gold }} />
+        </div>
+      </div>
+
+      {/* What this film is not */}
+      <div className="pt-2 border-t" style={{ borderColor: COLORS.borderLight }}>
+        <p className="text-[9px] font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.textMuted }}>
+          What this film is not
+        </p>
+        <div className="space-y-1">
+          {WHAT_FILM_IS_NOT.map((item) => (
+            <div key={item} className="flex items-start gap-1.5">
+              <Check className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: COLORS.green }} />
+              <span className="text-[10px] leading-snug" style={{ color: COLORS.textMid }}>{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Link
+        href="#"
+        className="flex items-center gap-1 text-[10px] font-medium mt-3 transition-colors hover:underline"
+        style={{ color: COLORS.blue }}
+      >
+        View post →
+      </Link>
+    </div>
+  )
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatTimecode(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${String(s).padStart(2, "0")}`
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
