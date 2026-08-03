@@ -59,6 +59,23 @@ import {
   Play,
   Volume2,
   Download,
+  Undo2,
+  Redo2,
+  ZoomIn,
+  ZoomOut,
+  Copy,
+  Trash2,
+  Music,
+  Type as TypeIcon,
+  Captions,
+  Maximize as MaximizeIcon,
+  Settings as SettingsIcon,
+  Send,
+  Scissors as ScissorsIcon,
+  RotateCw,
+  Split,
+  ChevronLeft,
+  Plus as PlusIcon,
 } from "lucide-react"
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -178,13 +195,7 @@ export default function ProductionWorkspacePage() {
           {activeTab === "script" && <ScriptTab production={production} />}
           {activeTab === "frames" && <FramesTab production={production} />}
           {activeTab === "scenes" && <ScenesTab production={production} />}
-          {activeTab === "edit" && (
-            <PlaceholderTab
-              title="Edit"
-              subtitle="Timeline, transitions, and final assembly."
-              icon={Scissors}
-            />
-          )}
+          {activeTab === "edit" && <EditTab production={production} />}
           {activeTab === "package" && (
             <PlaceholderTab
               title="Package"
@@ -2675,6 +2686,713 @@ function TakeStatusBadge({ status }: { status: "approved" | "review" | "rejected
     >
       {c.label}
     </span>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EDIT TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const EDIT_SCENE_ASSETS = [
+  { idx: 1, title: "The Catch", start: "0:00", end: "0:05", status: "ready" as const },
+  { idx: 2, title: "The Reveal", start: "0:05", end: "0:10", status: "ready" as const },
+  { idx: 3, title: "The Marble", start: "0:10", end: "0:15", status: "ready" as const },
+  { idx: 4, title: "The Descent", start: "0:15", end: "0:25", status: "ready" as const },
+  { idx: 5, title: "The Turn", start: "0:25", end: "0:30", status: "ready" as const },
+  { idx: 6, title: "The Settle", start: "0:30", end: "0:35", status: "ready" as const },
+]
+
+const SFX_CHIPS = ["Footsteps", "Door Creak", "Metal Turn", "Room Tone"]
+const TITLE_CHIPS = [
+  "The cup slides.",
+  "Pull back.",
+  "The first answer…",
+  "Go beneath the surface.",
+  "Find the one turn.",
+  "Movement is not always progress.",
+]
+
+const VERSION_HISTORY = [
+  { ver: "V3", date: "Today, 2:41 PM", author: "Tai", current: true },
+  { ver: "V2", date: "Today, 11:32 AM", author: "Tai", current: false },
+  { ver: "V1", date: "Yesterday, 9:18 PM", author: "Tai", current: false },
+]
+
+const SPEED_OPTIONS = ["0.5x", "0.75x", "1x", "1.25x", "1.5x", "2x"]
+
+function EditTab({ }: { production: Production }) {
+  const [selectedClip, setSelectedClip] = useState(4) // Scene 04 selected by default
+  const [snapEnabled, setSnapEnabled] = useState(true)
+  const [colorEnabled, setColorEnabled] = useState(true)
+  const [speed, setSpeed] = useState("1x")
+  const [activeAspect, setActiveAspect] = useState<"9:16" | "1:1" | "16:9">("9:16")
+  const [playheadPos] = useState(45) // percent
+
+  return (
+    <div className="pt-4">
+      {/* ═══ HEADER ROW ═══ */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="font-serif text-xl" style={{ color: COLORS.textDark }}>
+            <span style={{ color: COLORS.textMuted }}>6.</span> Assemble the final cut
+          </h1>
+          <p className="text-[11px] mt-0.5" style={{ color: COLORS.textMid }}>
+            Arrange, trim, and polish. The edit is where scenes become a film.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-medium" style={{ color: COLORS.textMuted }}>Production progress</span>
+            <span className="text-[10px] font-semibold" style={{ color: COLORS.textDark }}>6 of 8</span>
+            <div className="w-24 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: COLORS.borderLight }}>
+              <div className="h-full rounded-full" style={{ width: "75%", backgroundColor: COLORS.navy }} />
+            </div>
+          </div>
+          <button className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+            <SettingsIcon className="w-3 h-3" />
+            Production settings
+          </button>
+        </div>
+      </div>
+
+      {/* ═══ MAIN GRID ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_300px] gap-4">
+        {/* ═══ LEFT: ASSETS PANEL ═══ */}
+        <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+          <div className="px-3 pt-3 pb-2 border-b" style={{ borderColor: COLORS.borderLight }}>
+            <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.textMid }}>Assets</p>
+          </div>
+          {/* Sub-tabs */}
+          <div className="flex items-center gap-3 px-3 py-2 border-b" style={{ borderColor: COLORS.borderLight }}>
+            {['Scenes', 'B-roll', 'Audio', 'Graphics'].map((tab, i) => (
+              <button
+                key={tab}
+                className="text-[9px] font-semibold pb-0.5 transition-colors relative"
+                style={{ color: i === 0 ? COLORS.navy : COLORS.textMuted }}
+              >
+                {tab}
+                {i === 0 && <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ backgroundColor: COLORS.gold }} />}
+              </button>
+            ))}
+          </div>
+          {/* Scene list */}
+          <div className="max-h-[420px] overflow-y-auto">
+            {EDIT_SCENE_ASSETS.map((asset) => {
+              const isSelected = selectedClip === asset.idx
+              return (
+                <button
+                  key={asset.idx}
+                  onClick={() => setSelectedClip(asset.idx)}
+                  className="w-full flex items-center gap-2 px-2 py-2 border-b last:border-0 text-left transition-colors hover:bg-black/[0.015]"
+                  style={{
+                    borderColor: COLORS.borderLight,
+                    backgroundColor: isSelected ? "rgba(194,154,91,0.06)" : "transparent",
+                  }}
+                >
+                  <div
+                    className="w-10 h-7 rounded flex-shrink-0 flex items-center justify-center text-[8px] font-bold"
+                    style={{
+                      background: `linear-gradient(135deg, ${COLORS.navy}12, ${COLORS.gold}08)`,
+                      color: COLORS.textMuted,
+                      border: isSelected ? `1px solid ${COLORS.gold}` : "none",
+                    }}
+                  >
+                    {String(asset.idx).padStart(2, "0")}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-semibold truncate" style={{ color: COLORS.textDark }}>{asset.title}</p>
+                    <p className="text-[8px]" style={{ color: COLORS.textMuted }}>{asset.start} – {asset.end}</p>
+                  </div>
+                  <Check className="w-3 h-3 flex-shrink-0" style={{ color: COLORS.green }} />
+                </button>
+              )
+            })}
+          </div>
+          {/* Add button */}
+          <div className="p-2 border-t" style={{ borderColor: COLORS.borderLight }}>
+            <button className="w-full flex items-center justify-center gap-1 text-[9px] font-medium px-2 py-1.5 rounded border border-dashed transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+              <PlusIcon className="w-3 h-3" />
+              Add from Scenes
+            </button>
+          </div>
+        </div>
+
+        {/* ═══ CENTER: PREVIEW + TIMELINE ═══ */}
+        <div className="space-y-3">
+          {/* ═══ VIDEO PREVIEW PLAYER ═══ */}
+          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: COLORS.navy, borderColor: COLORS.borderLight }}>
+            {/* Preview area */}
+            <div
+              className="relative flex items-center justify-center"
+              style={{ height: 200, background: `linear-gradient(135deg, ${COLORS.navy}, #0D1626)` }}
+            >
+              {/* Scene watermark */}
+              <span className="text-[60px] font-serif select-none" style={{ color: "rgba(255,255,255,0.04)" }}>
+                {String(selectedClip).padStart(2, "0")}
+              </span>
+
+              {/* Center play button */}
+              <button className="absolute inset-0 flex items-center justify-center group">
+                <div
+                  className="rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
+                  style={{ width: 48, height: 48, backgroundColor: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)" }}
+                >
+                  <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
+                </div>
+              </button>
+
+              {/* Top overlay */}
+              <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-bold text-white/80">{String(selectedClip).padStart(2, "0")}</span>
+                  <span className="text-[9px] text-white/50">·</span>
+                  <span className="text-[9px] text-white/60">
+                    {EDIT_SCENE_ASSETS[selectedClip - 1]?.title || ""}
+                  </span>
+                </div>
+              </div>
+
+              {/* Bottom control bar */}
+              <div className="absolute bottom-0 left-0 right-0 px-3 pb-2">
+                {/* Scrubber */}
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[8px] font-medium text-white/50">00:17</span>
+                  <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.15)" }}>
+                    <div className="h-full rounded-full relative" style={{ width: "48%", backgroundColor: COLORS.gold }}>
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.gold, transform: "translateY(-50%) translateX(50%)" }} />
+                    </div>
+                  </div>
+                  <span className="text-[8px] font-medium text-white/50">00:35</span>
+                </div>
+                {/* Transport controls */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <button className="text-white/60 hover:text-white transition-colors">
+                      <ChevronRight className="w-3.5 h-3.5 rotate-180" />
+                    </button>
+                    <button className="text-white/80 hover:text-white transition-colors">
+                      <Play className="w-4 h-4" fill="currentColor" />
+                    </button>
+                    <button className="text-white/60 hover:text-white transition-colors">
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Volume2 className="w-3 h-3 text-white/40" />
+                    <button className="text-[8px] font-medium text-white/50 hover:text-white/70 transition-colors">Fit ▾</button>
+                    <span className="text-[8px] font-medium px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" }}>9:16</span>
+                    <MaximizeIcon className="w-3 h-3 text-white/40" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ═══ FILMSTRIP ═══ */}
+            <div className="flex items-center gap-1 px-2 py-2" style={{ backgroundColor: "rgba(0,0,0,0.2)" }}>
+              <button className="text-white/40 hover:text-white/60 transition-colors flex-shrink-0">
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <div className="flex items-center gap-0.5 overflow-x-auto">
+                {EDIT_SCENE_ASSETS.map((asset, i) => {
+                  const isSelected = selectedClip === asset.idx
+                  return (
+                    <div key={asset.idx} className="flex items-center gap-0.5 flex-shrink-0">
+                      <button
+                        onClick={() => setSelectedClip(asset.idx)}
+                        className="relative w-12 h-8 rounded flex items-center justify-center text-[8px] font-bold transition-all"
+                        style={{
+                          backgroundColor: isSelected ? "rgba(194,154,91,0.2)" : "rgba(255,255,255,0.05)",
+                          border: isSelected ? `1px solid ${COLORS.gold}` : "1px solid rgba(255,255,255,0.08)",
+                          color: isSelected ? COLORS.gold : "rgba(255,255,255,0.4)",
+                        }}
+                      >
+                        {String(asset.idx).padStart(2, "0")}
+                      </button>
+                      {i < EDIT_SCENE_ASSETS.length - 1 && (
+                        <ScissorsIcon className="w-2 h-2 text-white/15" />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              <button className="text-white/40 hover:text-white/60 transition-colors flex-shrink-0">
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* ═══ TIMELINE EDITOR ═══ */}
+          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            {/* Toolbar */}
+            <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: COLORS.borderLight }}>
+              <div className="flex items-center gap-2">
+                <button className="text-[10px] font-medium transition-colors hover:text-textDark" style={{ color: COLORS.textMid }}>
+                  <Undo2 className="w-3 h-3 inline" /> Undo
+                </button>
+                <button className="text-[10px] font-medium transition-colors hover:text-textDark" style={{ color: COLORS.textMid }}>
+                  <Redo2 className="w-3 h-3 inline" /> Redo
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1.5 text-[9px] font-medium cursor-pointer" style={{ color: COLORS.textMid }}>
+                  <span>Snap</span>
+                  <button
+                    onClick={() => setSnapEnabled(!snapEnabled)}
+                    className="relative w-7 h-3.5 rounded-full transition-colors"
+                    style={{ backgroundColor: snapEnabled ? COLORS.blue : COLORS.border }}
+                  >
+                    <div
+                      className="absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white transition-transform"
+                      style={{ transform: snapEnabled ? "translateX(14px)" : "translateX(2px)" }}
+                    />
+                  </button>
+                </label>
+                <div className="flex items-center gap-1">
+                  <ZoomOut className="w-3 h-3" style={{ color: COLORS.textMuted }} />
+                  <div className="w-16 h-1 rounded-full" style={{ backgroundColor: COLORS.borderLight }}>
+                    <div className="h-full rounded-full" style={{ width: "50%", backgroundColor: COLORS.navy }} />
+                  </div>
+                  <ZoomIn className="w-3 h-3" style={{ color: COLORS.textMuted }} />
+                  <button className="text-[9px] font-medium ml-1 transition-colors hover:text-textDark" style={{ color: COLORS.textMid }}>Full ▾</button>
+                </div>
+                <button className="text-[9px] transition-colors hover:text-textDark" style={{ color: COLORS.textMuted }}>⋯</button>
+              </div>
+            </div>
+
+            {/* Time Ruler */}
+            <div className="flex items-center border-b relative" style={{ borderColor: COLORS.borderLight }}>
+              <div className="w-16 flex-shrink-0 px-2 py-1.5 border-r" style={{ borderColor: COLORS.borderLight }}>
+                <p className="text-[7px] font-bold tracking-wide uppercase" style={{ color: COLORS.textMuted }}>Track</p>
+              </div>
+              <div className="flex-1 relative px-1 py-1.5">
+                <div className="flex items-center justify-between">
+                  {[0, 5, 10, 15, 20, 25, 30, 35].map((t) => (
+                    <span key={t} className="text-[7px] font-medium" style={{ color: COLORS.textMuted }}>0:{String(t).padStart(2, "0")}</span>
+                  ))}
+                </div>
+                {/* Playhead line */}
+                <div
+                  className="absolute top-0 bottom-0 w-px pointer-events-none"
+                  style={{ left: `calc(${playheadPos}% + 64px)`, backgroundColor: COLORS.gold }}
+                >
+                  <div className="absolute top-0 -translate-x-1/2 w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.gold }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Track Rows */}
+            {/* Video Track */}
+            <TimelineTrack icon={FilmIcon} label="Video" color={COLORS.navy}>
+              <div className="flex items-center gap-0.5 h-full px-1">
+                {EDIT_SCENE_ASSETS.map((asset, i) => {
+                  const widthPct = asset.idx === 4 ? 28 : (asset.idx === 3 ? 14 : 10)
+                  const isSelected = selectedClip === asset.idx
+                  return (
+                    <div key={asset.idx} className="flex items-center gap-0.5" style={{ width: `${widthPct}%` }}>
+                      <button
+                        onClick={() => setSelectedClip(asset.idx)}
+                        className="flex-1 h-7 rounded flex items-center justify-center text-[7px] font-bold transition-all"
+                        style={{
+                          backgroundColor: isSelected ? "rgba(194,154,91,0.15)" : "rgba(26,35,50,0.06)",
+                          border: isSelected ? `1px solid ${COLORS.gold}` : "1px solid transparent",
+                          color: isSelected ? COLORS.gold : COLORS.textMid,
+                        }}
+                      >
+                        {String(asset.idx).padStart(2, "0")}
+                      </button>
+                      {i < EDIT_SCENE_ASSETS.length - 1 && <ScissorsIcon className="w-2 h-2 flex-shrink-0" style={{ color: COLORS.border }} />}
+                    </div>
+                  )
+                })}
+              </div>
+            </TimelineTrack>
+
+            {/* Narration Track */}
+            <TimelineTrack icon={Waves} label="Narration" color={COLORS.blue}>
+              <div className="h-full px-1 flex items-center">
+                <div className="w-full h-5 rounded flex items-center gap-px overflow-hidden" style={{ backgroundColor: "rgba(47,98,216,0.08)" }}>
+                  {Array.from({ length: 60 }).map((_, i) => {
+                    const heights = [30, 50, 70, 45, 60, 80, 55, 35, 65, 40, 50, 75, 45, 30, 55, 70, 40, 60, 35, 50]
+                    const h = heights[i % heights.length]
+                    return <div key={i} className="flex-1 rounded-sm" style={{ height: `${h}%`, backgroundColor: COLORS.blue, opacity: 0.6 }} />
+                  })}
+                </div>
+              </div>
+            </TimelineTrack>
+
+            {/* Music Track */}
+            <TimelineTrack icon={Music} label="Music" color={COLORS.green}>
+              <div className="h-full px-1 flex items-center">
+                <div className="w-full h-5 rounded flex items-center gap-px overflow-hidden" style={{ backgroundColor: "rgba(34,160,107,0.06)" }}>
+                  <div className="flex items-center gap-1 px-2 h-full">
+                    <Music className="w-2.5 h-2.5" style={{ color: COLORS.green, opacity: 0.6 }} />
+                    <span className="text-[7px] font-medium" style={{ color: COLORS.green, opacity: 0.7 }}>TT Ambient 02</span>
+                  </div>
+                  {Array.from({ length: 40 }).map((_, i) => {
+                    const heights = [20, 40, 30, 50, 35, 45, 25, 40, 30, 35, 20, 45, 30, 25, 40]
+                    const h = heights[i % heights.length]
+                    return <div key={i} className="flex-1 rounded-sm" style={{ height: `${h}%`, backgroundColor: COLORS.green, opacity: 0.4 }} />
+                  })}
+                </div>
+              </div>
+            </TimelineTrack>
+
+            {/* SFX Track */}
+            <TimelineTrack icon={Volume2} label="SFX" color={COLORS.gold}>
+              <div className="flex items-center gap-1 h-full px-1">
+                {SFX_CHIPS.map((sfx, i) => (
+                  <div
+                    key={sfx}
+                    className="text-[7px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap"
+                    style={{
+                      backgroundColor: "rgba(194,154,91,0.1)",
+                      color: COLORS.gold,
+                      marginLeft: i === 1 ? "8%" : i === 2 ? "20%" : i === 3 ? "15%" : "0",
+                    }}
+                  >
+                    {sfx}
+                  </div>
+                ))}
+              </div>
+            </TimelineTrack>
+
+            {/* Text/Titles Track */}
+            <TimelineTrack icon={TypeIcon} label="Text / Titles" color={COLORS.textMid}>
+              <div className="flex items-center gap-0.5 h-full px-1">
+                {TITLE_CHIPS.map((title, i) => (
+                  <div
+                    key={i}
+                    className="text-[7px] font-medium px-1.5 py-0.5 rounded truncate"
+                    style={{
+                      backgroundColor: "rgba(138,133,120,0.06)",
+                      color: COLORS.textMid,
+                      maxWidth: i === 2 ? "16%" : i === 5 ? "18%" : "12%",
+                    }}
+                  >
+                    {title}
+                  </div>
+                ))}
+              </div>
+            </TimelineTrack>
+
+            {/* Captions Track */}
+            <TimelineTrack icon={Captions} label="Captions" color={COLORS.blue}>
+              <div className="h-full px-1 flex items-center">
+                <div className="text-[7px] font-medium px-2 py-0.5 rounded truncate" style={{ backgroundColor: "rgba(47,98,216,0.06)", color: COLORS.blue }}>
+                  A cup slides across the desk…
+                </div>
+              </div>
+            </TimelineTrack>
+          </div>
+        </div>
+
+        {/* ═══ RIGHT: INSPECTOR PANEL ═══ */}
+        <div className="space-y-3">
+          {/* Inspector sub-tabs */}
+          <div className="flex items-center gap-1 rounded-lg border p-0.5" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            {['Edit', 'Audio', 'Text', 'Graphics', 'Export'].map((tab, i) => (
+              <button
+                key={tab}
+                className="flex-1 text-[8px] font-semibold px-1.5 py-1 rounded transition-colors"
+                style={{
+                  backgroundColor: i === 0 ? COLORS.navy : "transparent",
+                  color: i === 0 ? "#FFFFFF" : COLORS.textMuted,
+                }}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {/* Transform */}
+          <InspectorSection title="Transform">
+            <SliderRow label="Scale" value="100%" fill={100} />
+            <div className="flex items-center gap-2 mt-2">
+              <NumberField label="X" value="0" />
+              <NumberField label="Y" value="0" />
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <div className="flex-1">
+                <p className="text-[8px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: COLORS.textMuted }}>Rotation</p>
+                <select className="w-full text-[9px] border rounded px-1 py-0.5" style={{ borderColor: COLORS.borderLight, color: COLORS.textDark, backgroundColor: COLORS.white }}>
+                  <option>0°</option>
+                </select>
+              </div>
+              <div className="w-12">
+                <p className="text-[8px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: COLORS.textMuted }}> </p>
+                <input type="text" value="0°" readOnly className="w-full text-[9px] border rounded px-1 py-0.5 text-center" style={{ borderColor: COLORS.borderLight, color: COLORS.textDark, backgroundColor: COLORS.white }} />
+              </div>
+              <button className="mt-3">
+                <RotateCw className="w-3 h-3" style={{ color: COLORS.textMuted }} />
+              </button>
+            </div>
+            <div className="mt-2">
+              <SliderRow label="Opacity" value="100%" fill={100} />
+            </div>
+          </InspectorSection>
+
+          {/* Color */}
+          <InspectorSection
+            title="Color"
+            toggle={{ checked: colorEnabled, onChange: () => setColorEnabled(!colorEnabled) }}
+          >
+            <div className="mb-2">
+              <p className="text-[8px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: COLORS.textMuted }}>LUT</p>
+              <select className="w-full text-[9px] border rounded px-1.5 py-1" style={{ borderColor: COLORS.borderLight, color: COLORS.textDark, backgroundColor: COLORS.white }}>
+                <option>TT Cinematic 01</option>
+              </select>
+            </div>
+            <SliderRow label="Intensity" value="64%" fill={64} />
+          </InspectorSection>
+
+          {/* Speed */}
+          <InspectorSection title="Speed">
+            <div className="flex items-center gap-0.5">
+              {SPEED_OPTIONS.map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => setSpeed(opt)}
+                  className="flex-1 text-[8px] font-semibold px-1 py-1 rounded transition-colors"
+                  style={{
+                    backgroundColor: speed === opt ? COLORS.navy : "rgba(138,133,120,0.04)",
+                    color: speed === opt ? "#FFFFFF" : COLORS.textMuted,
+                  }}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </InspectorSection>
+
+          {/* Clip Actions */}
+          <InspectorSection title="Clip">
+            <div className="grid grid-cols-5 gap-1">
+              {[
+                { icon: Replace, label: "Replace" },
+                { icon: ScissorsIcon, label: "Trim" },
+                { icon: Split, label: "Split" },
+                { icon: Copy, label: "Duplicate" },
+                { icon: Trash2, label: "Delete" },
+              ].map((action) => {
+                const Icon = action.icon
+                return (
+                  <button key={action.label} className="flex flex-col items-center gap-0.5 py-1.5 rounded transition-colors hover:bg-black/5">
+                    <Icon className="w-3 h-3" style={{ color: COLORS.textMid }} />
+                    <span className="text-[7px]" style={{ color: COLORS.textMuted }}>{action.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </InspectorSection>
+
+          {/* AI Tools */}
+          <InspectorSection title="AI Tools" badge="BETA">
+            <div className="grid grid-cols-2 gap-1">
+              {[
+                { icon: Sparkles, label: "Enhance" },
+                { icon: Zap, label: "Stabilize" },
+                { icon: Palette, label: "Match color" },
+                { icon: MoreHorizontal, label: "More" },
+              ].map((tool) => {
+                const Icon = tool.icon
+                return (
+                  <button key={tool.label} className="flex items-center gap-1 px-1.5 py-1.5 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.borderLight }}>
+                    <Icon className="w-2.5 h-2.5" style={{ color: COLORS.gold }} />
+                    <span className="text-[8px] font-medium" style={{ color: COLORS.textMid }}>{tool.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </InspectorSection>
+
+          {/* Versions */}
+          <div className="rounded-xl border p-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            <p className="text-[9px] font-bold tracking-[0.12em] uppercase mb-2" style={{ color: COLORS.textMid }}>Versions</p>
+            <p className="text-[8px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: COLORS.textMuted }}>Current version</p>
+            {VERSION_HISTORY.filter(v => v.current).map((v) => (
+              <div key={v.ver} className="flex items-center gap-2 px-1.5 py-1.5 rounded mb-2" style={{ backgroundColor: "rgba(194,154,91,0.06)" }}>
+                <span className="text-[9px] font-bold" style={{ color: COLORS.gold }}>{v.ver}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[8px]" style={{ color: COLORS.textDark }}>{v.date}</p>
+                  <p className="text-[7px]" style={{ color: COLORS.textMuted }}>{v.author}</p>
+                </div>
+                <MoreHorizontal className="w-2.5 h-2.5" style={{ color: COLORS.textMuted }} />
+              </div>
+            ))}
+            <p className="text-[8px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: COLORS.textMuted }}>Other versions</p>
+            <div className="space-y-1">
+              {VERSION_HISTORY.filter(v => !v.current).map((v) => (
+                <div key={v.ver} className="flex items-center gap-2 px-1.5 py-1 rounded transition-colors hover:bg-black/[0.02]">
+                  <span className="text-[9px] font-bold" style={{ color: COLORS.textMuted }}>{v.ver}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[8px]" style={{ color: COLORS.textMid }}>{v.date}</p>
+                    <p className="text-[7px]" style={{ color: COLORS.textMuted }}>{v.author}</p>
+                  </div>
+                  <MoreHorizontal className="w-2.5 h-2.5" style={{ color: COLORS.textMuted }} />
+                </div>
+              ))}
+            </div>
+            <button className="w-full flex items-center justify-center gap-1 text-[9px] font-medium px-2 py-1.5 rounded-lg border transition-colors hover:bg-black/5 mt-2" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+              <GitCompare className="w-2.5 h-2.5" />
+              Compare versions
+            </button>
+          </div>
+
+          {/* Ready to Finalize */}
+          <div className="rounded-xl border p-3" style={{ backgroundColor: "rgba(194,154,91,0.05)", borderColor: "rgba(194,154,91,0.2)" }}>
+            <p className="font-serif text-[12px] mb-0.5" style={{ color: COLORS.textDark }}>Ready to finalize</p>
+            <p className="text-[9px] mb-2.5" style={{ color: COLORS.textMid }}>The edit is ready for review and export.</p>
+            <button className="flex items-center justify-center gap-1 w-full text-[10px] font-semibold px-3 py-2 rounded-lg transition-opacity hover:opacity-90 mb-1.5" style={{ backgroundColor: COLORS.navy, color: "#FFFFFF" }}>
+              Preview &amp; export package
+              <ArrowRight className="w-3 h-3" />
+            </button>
+            <button className="flex items-center justify-center gap-1 w-full text-[10px] font-medium px-3 py-2 rounded-lg border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+              Save as new version
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══ BOTTOM STATUS BAR ═══ */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-30 flex items-center gap-4 px-6 py-2 border-t md:ml-[140px]"
+        style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}
+      >
+        <span className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: COLORS.textMuted }}>Format previews</span>
+        {([
+          { key: "9:16", label: "9:16 Vertical" },
+          { key: "1:1", label: "1:1 Square" },
+          { key: "16:9", label: "16:9 Landscape" },
+        ] as const).map((fmt) => (
+          <button
+            key={fmt.key}
+            onClick={() => setActiveAspect(fmt.key)}
+            className="text-[9px] font-medium px-2 py-0.5 rounded-full border transition-colors"
+            style={{
+              borderColor: activeAspect === fmt.key ? COLORS.gold : COLORS.border,
+              color: activeAspect === fmt.key ? COLORS.gold : COLORS.textMuted,
+              backgroundColor: activeAspect === fmt.key ? "rgba(194,154,91,0.06)" : "transparent",
+            }}
+          >
+            {fmt.label}
+          </button>
+        ))}
+        <div className="w-px h-3" style={{ backgroundColor: COLORS.border }} />
+        <span className="text-[9px]" style={{ color: COLORS.textMid }}>
+          <strong style={{ color: COLORS.textDark }}>00:35</strong> total
+        </span>
+        <span className="text-[9px]" style={{ color: COLORS.textMid }}>
+          <strong style={{ color: COLORS.textDark }}>198 MB</strong> est. size
+        </span>
+        <span className="text-[9px]" style={{ color: COLORS.textMid }}>
+          <strong style={{ color: COLORS.textDark }}>2m 40s</strong> est. render
+        </span>
+        <div className="flex-1" />
+        <button
+          className="flex items-center gap-1 text-[10px] font-semibold px-3 py-1.5 rounded-full transition-opacity hover:opacity-90"
+          style={{ backgroundColor: COLORS.navy, color: "#FFFFFF" }}
+        >
+          <Send className="w-3 h-3" />
+          Send for review
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Edit Tab Sub-Components ────────────────────────────────────────────────
+
+function TimelineTrack({
+  icon: Icon,
+  label,
+  color,
+  children,
+}: {
+  icon: React.ElementType
+  label: string
+  color: string
+  children: React.ReactNode
+}) {
+  return (
+    <div
+      className="flex items-stretch border-b last:border-0"
+      style={{ borderColor: COLORS.borderLight, backgroundColor: label === "Video" ? "rgba(138,133,120,0.015)" : "transparent" }}
+    >
+      <div className="w-16 flex-shrink-0 flex items-center gap-1 px-2 py-1.5 border-r" style={{ borderColor: COLORS.borderLight }}>
+        <Icon className="w-2.5 h-2.5 flex-shrink-0" style={{ color }} />
+        <span className="text-[7px] font-semibold uppercase truncate" style={{ color: COLORS.textMuted }}>{label}</span>
+      </div>
+      <div className="flex-1 relative" style={{ height: 32 }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function InspectorSection({
+  title,
+  children,
+  toggle,
+  badge,
+}: {
+  title: string
+  children: React.ReactNode
+  toggle?: { checked: boolean; onChange: () => void }
+  badge?: string
+}) {
+  return (
+    <div className="rounded-xl border p-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <p className="text-[9px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.textMid }}>{title}</p>
+          {badge && (
+            <span className="text-[6px] font-bold tracking-wide px-1 py-0.5 rounded-full" style={{ backgroundColor: "rgba(45,212,191,0.1)", color: "#0D9488" }}>{badge}</span>
+          )}
+        </div>
+        {toggle && (
+          <button
+            onClick={toggle.onChange}
+            className="relative w-7 h-3.5 rounded-full transition-colors"
+            style={{ backgroundColor: toggle.checked ? COLORS.blue : COLORS.border }}
+          >
+            <div
+              className="absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white transition-transform"
+              style={{ transform: toggle.checked ? "translateX(14px)" : "translateX(2px)" }}
+            />
+          </button>
+        )}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function SliderRow({ label, value, fill }: { label: string; value: string; fill: number }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-0.5">
+        <span className="text-[8px] font-semibold uppercase tracking-wide" style={{ color: COLORS.textMuted }}>{label}</span>
+        <span className="text-[8px] font-semibold" style={{ color: COLORS.textDark }}>{value}</span>
+      </div>
+      <div className="relative h-1 rounded-full" style={{ backgroundColor: COLORS.borderLight }}>
+        <div className="h-full rounded-full" style={{ width: `${fill}%`, backgroundColor: COLORS.navy }} />
+      </div>
+    </div>
+  )
+}
+
+function NumberField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex-1">
+      <p className="text-[8px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: COLORS.textMuted }}>{label}</p>
+      <input
+        type="text"
+        value={value}
+        readOnly
+        className="w-full text-[9px] border rounded px-1.5 py-0.5 text-center"
+        style={{ borderColor: COLORS.borderLight, color: COLORS.textDark, backgroundColor: COLORS.white }}
+      />
+    </div>
   )
 }
 
