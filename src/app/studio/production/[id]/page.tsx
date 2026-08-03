@@ -56,6 +56,9 @@ import {
   List,
   LayoutGrid,
   Filter,
+  Play,
+  Volume2,
+  Download,
 } from "lucide-react"
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -174,13 +177,7 @@ export default function ProductionWorkspacePage() {
           )}
           {activeTab === "script" && <ScriptTab production={production} />}
           {activeTab === "frames" && <FramesTab production={production} />}
-          {activeTab === "scenes" && (
-            <PlaceholderTab
-              title="Scenes"
-              subtitle="Scene conductor and shot orchestration."
-              icon={FilmIcon}
-            />
-          )}
+          {activeTab === "scenes" && <ScenesTab production={production} />}
           {activeTab === "edit" && (
             <PlaceholderTab
               title="Edit"
@@ -2111,6 +2108,573 @@ function ContinuityCheckCard() {
         ))}
       </div>
     </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCENES TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const SCENE_CARD_TITLES = [
+  "The Weight",
+  "The Reveal",
+  "Beneath the Surface",
+  "The Turn",
+  "The Release",
+  "The Dawn",
+]
+
+const SCENE_CARD_DURATIONS = ["0:08", "0:10", "0:12", "0:08", "0:10", "0:10"]
+const SCENE_TAKE_COUNTS = [3, 2, 4, 1, 2, 0]
+
+const SCENE_CAMERA = [
+  { shot: "Wide Shot", lens: "24mm", movement: "Slow push-in", height: "Eye level" },
+  { shot: "Dutch Tilt", lens: "28mm", movement: "Static hold", height: "Eye level" },
+  { shot: "Low Angle", lens: "21mm", movement: "Forward track", height: "Low" },
+  { shot: "Close-up", lens: "50mm", movement: "Handheld", height: "Eye level" },
+  { shot: "Medium Shot", lens: "35mm", movement: "Lateral dolly", height: "Eye level" },
+  { shot: "Wide Shot", lens: "24mm", movement: "Slow pull-back", height: "Eye level" },
+]
+
+const SCENE_LIGHTING = [
+  { setup: "Dawn Backlight", intensity: "Soft", temp: "3200K", direction: "Back-left", diffusion: "1/2 CTO" },
+  { setup: "Soft Window", intensity: "Medium", temp: "4300K", direction: "Right side", diffusion: "Frost" },
+  { setup: "Low Key", intensity: "Low", temp: "2800K", direction: "Below subject", diffusion: "None" },
+  { setup: "Motivated Practical", intensity: "Medium", temp: "3600K", direction: "Front-right", diffusion: "1/4 CTO" },
+  { setup: "Dawn Side", intensity: "Soft", temp: "3200K", direction: "Left side", diffusion: "Silk" },
+  { setup: "Golden Dawn", intensity: "Warm", temp: "3000K", direction: "Back-right", diffusion: "1/2 CTO" },
+]
+
+const SCENE_SOUND = [
+  { src: "Room tone · distant traffic", score: "Minimal piano motif", foley: "Cup sliding on desk", dialog: "None" },
+  { src: "Tilt creak · items shifting", score: "Low string swell", foley: "Papers falling", dialog: "None" },
+  { src: "Underground ambience · water drip", score: "Deep drone + single note", foley: "Footsteps on stone", dialog: "None" },
+  { src: "Metal strain · valve click", score: "Tension string stab", foley: "Hands on metal", dialog: "None" },
+  { src: "Exhale · fabric rustle", score: "Piano resolve", foley: "Keys dropping", dialog: "None" },
+  { src: "Ambient city · birds", score: "Full melody · warm strings", foley: "None", dialog: "None" },
+]
+
+type TakeStatus = "approved" | "review" | "rejected"
+
+const TAKES_DATA: { id: string; duration: string; status: TakeStatus; note: string }[][] = [
+  [
+    { id: "A", duration: "0:08", status: "approved", note: "Best motion arc — smooth settle" },
+    { id: "B", duration: "0:08", status: "review", note: "Slight framing drift at 0:03" },
+    { id: "C", duration: "0:08", status: "rejected", note: "Character scale breaks" },
+  ],
+  [
+    { id: "A", duration: "0:10", status: "approved", note: "Strong tilt reveal" },
+    { id: "B", duration: "0:10", status: "rejected", note: "Too fast — loses tension" },
+  ],
+  [
+    { id: "A", duration: "0:12", status: "review", note: "Great underground mood" },
+    { id: "B", duration: "0:12", status: "review", note: "Darker — more oppressive" },
+    { id: "C", duration: "0:12", status: "rejected", note: "Lighting mismatch with Scene 02" },
+    { id: "D", duration: "0:12", status: "rejected", note: "Camera shake" },
+  ],
+  [
+    { id: "A", duration: "0:08", status: "approved", note: "Perfect valve interaction" },
+  ],
+  [
+    { id: "A", duration: "0:10", status: "review", note: "Good release moment" },
+    { id: "B", duration: "0:10", status: "rejected", note: "Performance feels flat" },
+  ],
+  [],
+]
+
+const GEN_SETTINGS = [
+  { label: "Model", value: "Veo 3.1" },
+  { label: "Aspect", value: "16:9" },
+  { label: "Duration", value: "8–12s" },
+  { label: "FPS", value: "24" },
+  { label: "Style", value: "Cinematic realism" },
+  { label: "Motion", value: "Subtle" },
+]
+
+const SEQUENCE_NODES = [
+  { label: "01", status: "generated" as const },
+  { label: "02", status: "generated" as const },
+  { label: "03", status: "generating" as const },
+  { label: "04", status: "generated" as const },
+  { label: "05", status: "queued" as const },
+  { label: "06", status: "queued" as const },
+]
+
+function ScenesTab({ production }: { production: Production }) {
+  const [selectedScene, setSelectedScene] = useState(0)
+  const [selectedTake, setSelectedTake] = useState<string | null>("A")
+  const shots = production.film.shots.slice(0, 6)
+  const totalDuration = shots.reduce((sum, s) => sum + s.durationSec, 0)
+  const currentTakes = TAKES_DATA[selectedScene] || []
+  const generatedCount = SEQUENCE_NODES.filter((s) => s.status === "generated").length
+
+  const sceneStatuses = ["generated", "generated", "generating", "generated", "queued", "queued"] as const
+
+  return (
+    <div className="pt-6">
+      {/* ═══ HEADER ═══ */}
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <h1 className="font-serif text-xl" style={{ color: COLORS.textDark }}>
+            <span style={{ color: COLORS.textMuted }}>5.</span> Generate and direct each scene
+          </h1>
+          <p className="text-[11px] mt-0.5" style={{ color: COLORS.textMid }}>
+            The Studio generates motion for each approved frame. Direct each scene until it earns its place.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded border" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+            <span>Render engine</span>
+            <span className="font-semibold" style={{ color: COLORS.textDark }}>Veo 3.1</span>
+            <ChevronDown className="w-3 h-3" />
+          </div>
+          <button className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded transition-opacity hover:opacity-90" style={{ backgroundColor: COLORS.navy, color: "#FFFFFF" }}>
+            <Sparkles className="w-3 h-3" style={{ color: COLORS.gold }} />
+            Generate all remaining
+          </button>
+        </div>
+      </div>
+
+      {/* ═══ SCENE CARDS STRIP ═══ */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-4">
+        {shots.map((shot, idx) => {
+          const status = sceneStatuses[idx]
+          const isActive = selectedScene === idx
+          const takeCount = SCENE_TAKE_COUNTS[idx]
+          return (
+            <button
+              key={shot.no}
+              onClick={() => { setSelectedScene(idx); setSelectedTake("A") }}
+              className="flex-shrink-0 rounded-lg border overflow-hidden transition-all"
+              style={{
+                backgroundColor: COLORS.white,
+                borderColor: isActive ? COLORS.gold : COLORS.borderLight,
+                borderWidth: isActive ? 1.5 : 1,
+                boxShadow: isActive ? "0 2px 10px rgba(194,154,91,0.15)" : "none",
+                width: 96,
+              }}
+            >
+              <div
+                className="relative h-14 flex items-center justify-center"
+                style={{ background: `linear-gradient(135deg, ${COLORS.navy}${isActive ? "18" : "10"}, ${COLORS.gold}08)` }}
+              >
+                <span className="text-[20px] font-serif" style={{ color: `${COLORS.navy}25` }}>
+                  {String(idx + 1).padStart(2, "0")}
+                </span>
+                {/* Status indicator */}
+                <div className="absolute top-1 right-1">
+                  {status === "generated" && <Check className="w-2.5 h-2.5" style={{ color: COLORS.green }} />}
+                  {status === "generating" && <RefreshCw className="w-2.5 h-2.5 animate-spin" style={{ color: COLORS.gold }} />}
+                  {status === "queued" && <Clock className="w-2.5 h-2.5" style={{ color: COLORS.textMuted }} />}
+                </div>
+                {/* Play indicator for generated */}
+                {status === "generated" && (
+                  <div className="absolute bottom-1 left-1">
+                    <Play className="w-2.5 h-2.5 text-white/60" />
+                  </div>
+                )}
+              </div>
+              <div className="px-1.5 py-1.5">
+                <p className="text-[8px] font-semibold truncate" style={{ color: COLORS.textDark }}>
+                  {SCENE_CARD_TITLES[idx] || `Scene ${idx + 1}`}
+                </p>
+                <div className="flex items-center justify-between mt-0.5">
+                  <span className="text-[7px]" style={{ color: COLORS.textMuted }}>{SCENE_CARD_DURATIONS[idx]}</span>
+                  {takeCount > 0 && (
+                    <span className="text-[7px] font-medium px-1 rounded" style={{ backgroundColor: "rgba(47,98,216,0.06)", color: COLORS.blue }}>
+                      {takeCount} takes
+                    </span>
+                  )}
+                </div>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ═══ MAIN GRID ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
+        {/* ═══ LEFT: EXPANDED SCENE PANEL ═══ */}
+        <div className="space-y-4">
+          {/* Video Preview */}
+          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            <div
+              className="relative flex items-center justify-center"
+              style={{
+                height: 240,
+                background: `linear-gradient(135deg, ${COLORS.navy}12, ${COLORS.gold}08)`,
+              }}
+            >
+              {/* Scene number watermark */}
+              <span className="text-[72px] font-serif select-none" style={{ color: `${COLORS.navy}08` }}>
+                {String(selectedScene + 1).padStart(2, "0")}
+              </span>
+
+              {/* Center play button */}
+              <button
+                className="absolute inset-0 flex items-center justify-center group"
+              >
+                <div
+                  className="rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
+                  style={{
+                    width: 56, height: 56,
+                    backgroundColor: "rgba(26,35,50,0.8)",
+                    backdropFilter: "blur(4px)",
+                  }}
+                >
+                  <Play className="w-6 h-6 text-white ml-0.5" fill="white" />
+                </div>
+              </button>
+
+              {/* Top overlay bar */}
+              <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-bold tracking-[0.1em] uppercase text-white/80">
+                    Scene {String(selectedScene + 1).padStart(2, "0")}
+                  </span>
+                  <span className="text-[9px] text-white/50">·</span>
+                  <span className="text-[9px] text-white/60">
+                    {SCENE_CARD_TITLES[selectedScene] || `Scene ${selectedScene + 1}`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {sceneStatuses[selectedScene] === "generating" ? (
+                    <span className="flex items-center gap-1 text-[8px] font-semibold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "rgba(194,154,91,0.2)", color: COLORS.gold }}>
+                      <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                      Generating
+                    </span>
+                  ) : sceneStatuses[selectedScene] === "queued" ? (
+                    <span className="flex items-center gap-1 text-[8px] font-semibold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "rgba(138,133,120,0.15)", color: COLORS.textMuted }}>
+                      <Clock className="w-2.5 h-2.5" />
+                      Queued
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-[8px] font-semibold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "rgba(34,160,107,0.15)", color: COLORS.green }}>
+                      <Check className="w-2.5 h-2.5" />
+                      Ready
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Bottom overlay bar — scrubber */}
+              <div className="absolute bottom-0 left-0 right-0 px-3 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[8px] font-medium text-white/60">0:00</span>
+                  <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.2)" }}>
+                    <div className="h-full rounded-full" style={{ width: "35%", backgroundColor: COLORS.gold }} />
+                  </div>
+                  <span className="text-[8px] font-medium text-white/60">{SCENE_CARD_DURATIONS[selectedScene]}</span>
+                  <Volume2 className="w-3 h-3 text-white/40" />
+                </div>
+              </div>
+            </div>
+
+            {/* Script excerpt + status row */}
+            <div className="flex items-start gap-4 p-3 border-t" style={{ borderColor: COLORS.borderLight }}>
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-bold tracking-[0.1em] uppercase mb-1" style={{ color: COLORS.textMuted }}>
+                  Script excerpt
+                </p>
+                <p className="text-[11px] leading-relaxed font-serif italic" style={{ color: COLORS.textDark }}>
+                  {NARRATION_LINES[selectedScene] || "—"}
+                </p>
+                <p className="text-[9px] mt-1" style={{ color: COLORS.textMid }}>
+                  {shots[selectedScene]?.description || ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button className="flex items-center gap-1 text-[9px] font-medium px-2 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+                  <Download className="w-2.5 h-2.5" />
+                  Export
+                </button>
+                <button className="flex items-center gap-1 text-[9px] font-medium px-2 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+                  <Replace className="w-2.5 h-2.5" />
+                  Regenerate
+                </button>
+                <button className="flex items-center gap-1 text-[9px] font-semibold px-2 py-1 rounded transition-opacity hover:opacity-90" style={{ backgroundColor: COLORS.gold, color: "#FFFFFF" }}>
+                  <Check className="w-2.5 h-2.5" />
+                  Approve
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ═══ GENERATED TAKES ═══ */}
+          <div className="rounded-xl border p-4" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.textMid }}>
+                  Generated takes
+                </p>
+                <p className="text-[9px] mt-0.5" style={{ color: COLORS.textMuted }}>
+                  {currentTakes.length} take{currentTakes.length !== 1 ? "s" : ""} · Select the best one
+                </p>
+              </div>
+              <button className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.blue }}>
+                <Plus className="w-3 h-3" />
+                New take
+              </button>
+            </div>
+
+            {currentTakes.length === 0 ? (
+              <div className="text-center py-6 rounded-lg border border-dashed" style={{ borderColor: COLORS.border }}>
+                <FilmIcon className="w-8 h-8 mx-auto mb-2" style={{ color: COLORS.border }} />
+                <p className="text-[11px] mb-1" style={{ color: COLORS.textMid }}>No takes generated yet</p>
+                <button className="text-[10px] font-semibold transition-colors hover:underline" style={{ color: COLORS.blue }}>
+                  Generate first take →
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {currentTakes.map((take) => {
+                  const isSelected = selectedTake === take.id
+                  return (
+                    <div
+                      key={take.id}
+                      onClick={() => setSelectedTake(take.id)}
+                      className="rounded-lg border overflow-hidden cursor-pointer transition-all"
+                      style={{
+                        borderColor: isSelected ? COLORS.gold : COLORS.borderLight,
+                        borderWidth: isSelected ? 1.5 : 1,
+                        backgroundColor: "rgba(138,133,120,0.02)",
+                      }}
+                    >
+                      <div
+                        className="relative h-16 flex items-center justify-center"
+                        style={{ background: `linear-gradient(135deg, ${COLORS.navy}08, ${COLORS.gold}05)` }}
+                      >
+                        <span className="text-[14px] font-serif" style={{ color: `${COLORS.navy}20` }}>{take.id}</span>
+                        {take.status === "approved" && (
+                          <div className="absolute top-1 right-1">
+                            <Check className="w-2.5 h-2.5" style={{ color: COLORS.green }} />
+                          </div>
+                        )}
+                        {take.status === "rejected" && (
+                          <div className="absolute top-1 right-1">
+                            <X className="w-2.5 h-2.5" style={{ color: "#E53E3E" }} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="px-2 py-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-bold" style={{ color: COLORS.textDark }}>Take {take.id}</span>
+                          <span className="text-[8px]" style={{ color: COLORS.textMuted }}>{take.duration}</span>
+                        </div>
+                        <p className="text-[8px] leading-snug mt-0.5" style={{ color: COLORS.textMid }}>{take.note}</p>
+                        <div className="mt-1">
+                          <TakeStatusBadge status={take.status} />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ═══ RIGHT DETAIL PANEL ═══ */}
+        <div className="space-y-4">
+          {/* Camera Direction */}
+          <SceneDetailCard
+            icon={Camera}
+            title="Camera direction"
+            rows={(() => {
+              const cam = SCENE_CAMERA[selectedScene] || SCENE_CAMERA[0]
+              return [
+                { label: "Shot type", value: cam.shot },
+                { label: "Lens", value: cam.lens },
+                { label: "Movement", value: cam.movement },
+                { label: "Height", value: cam.height },
+              ]
+            })()}
+          />
+
+          {/* Lighting Design */}
+          <SceneDetailCard
+            icon={Sun}
+            title="Lighting design"
+            rows={(() => {
+              const light = SCENE_LIGHTING[selectedScene] || SCENE_LIGHTING[0]
+              return [
+                { label: "Setup", value: light.setup },
+                { label: "Intensity", value: light.intensity },
+                { label: "Temperature", value: light.temp },
+                { label: "Direction", value: light.direction },
+                { label: "Diffusion", value: light.diffusion },
+              ]
+            })()}
+          />
+
+          {/* Sound Design */}
+          <SceneDetailCard
+            icon={Waves}
+            title="Sound design"
+            rows={(() => {
+              const sound = SCENE_SOUND[selectedScene] || SCENE_SOUND[0]
+              return [
+                { label: "Ambience", value: sound.src },
+                { label: "Score", value: sound.score },
+                { label: "Foley", value: sound.foley },
+                { label: "Dialog", value: sound.dialog },
+              ]
+            })()}
+          />
+
+          {/* Generation Settings */}
+          <div className="rounded-xl border p-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Aperture className="w-3.5 h-3.5" style={{ color: COLORS.gold }} />
+                <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.gold }}>
+                  Generation settings
+                </p>
+              </div>
+              <button className="text-[9px] font-medium transition-colors hover:underline" style={{ color: COLORS.blue }}>
+                Edit
+              </button>
+            </div>
+            <div className="space-y-1">
+              {GEN_SETTINGS.map((s) => (
+                <div key={s.label} className="flex items-center justify-between">
+                  <span className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: COLORS.textMuted }}>{s.label}</span>
+                  <span className="text-[10px]" style={{ color: COLORS.textDark }}>{s.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══ BOTTOM SEQUENCE OVERVIEW BAR ═══ */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-30 border-t md:ml-[140px]"
+        style={{ backgroundColor: COLORS.navy, borderColor: "rgba(255,255,255,0.08)" }}
+      >
+        {/* Progress bar */}
+        <div className="h-0.5" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+          <div
+            className="h-full transition-all"
+            style={{
+              width: `${(generatedCount / SEQUENCE_NODES.length) * 100}%`,
+              backgroundColor: COLORS.gold,
+            }}
+          />
+        </div>
+
+        <div className="flex items-center gap-3 px-6 py-2.5">
+          {/* Sequence nodes */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {SEQUENCE_NODES.map((node, idx) => (
+              <div key={node.label} className="flex items-center gap-1.5">
+                <button
+                  onClick={() => { setSelectedScene(idx); setSelectedTake("A") }}
+                  className="flex items-center gap-1 px-2 py-1 rounded transition-colors"
+                  style={{
+                    backgroundColor: selectedScene === idx ? "rgba(194,154,91,0.15)" : "transparent",
+                  }}
+                >
+                  <div
+                    className="w-5 h-5 rounded flex items-center justify-center text-[8px] font-bold"
+                    style={{
+                      backgroundColor: node.status === "generated" ? COLORS.green : node.status === "generating" ? COLORS.gold : "rgba(255,255,255,0.1)",
+                      color: "#FFFFFF",
+                    }}
+                  >
+                    {node.status === "generated" ? <Check className="w-2.5 h-2.5" /> : node.label}
+                  </div>
+                  <span
+                    className="text-[8px] font-medium hidden sm:inline"
+                    style={{
+                      color: node.status === "queued" ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.7)",
+                    }}
+                  >
+                    {SCENE_CARD_TITLES[idx]?.split(" ")[0] || `S${node.label}`}
+                  </span>
+                </button>
+                {idx < SEQUENCE_NODES.length - 1 && (
+                  <div className="w-3 h-px" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Stats + actions */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="text-right">
+              <p className="text-[9px] font-semibold text-white">
+                {generatedCount}/{SEQUENCE_NODES.length} scenes ready
+              </p>
+              <p className="text-[8px]" style={{ color: "rgba(255,255,255,0.4)" }}>
+                {formatTimecode(totalDuration)} total
+              </p>
+            </div>
+            <button
+              className="flex items-center gap-1 text-[10px] font-semibold px-3 py-1.5 rounded-full transition-opacity hover:opacity-90"
+              style={{ backgroundColor: COLORS.gold, color: "#FFFFFF" }}
+            >
+              <ArrowRight className="w-3 h-3" />
+              Proceed to edit
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Scene Detail Card ──────────────────────────────────────────────────────
+
+function SceneDetailCard({
+  icon: Icon,
+  title,
+  rows,
+}: {
+  icon: React.ElementType
+  title: string
+  rows: { label: string; value: string }[]
+}) {
+  return (
+    <div className="rounded-xl border p-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Icon className="w-3.5 h-3.5" style={{ color: COLORS.textMuted }} />
+          <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.textMid }}>{title}</p>
+        </div>
+        <button className="text-[9px] font-medium transition-colors hover:underline" style={{ color: COLORS.blue }}>Edit</button>
+      </div>
+      <div className="space-y-1">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-start gap-2">
+            <span className="text-[9px] font-semibold uppercase tracking-wide w-20 flex-shrink-0 pt-0.5" style={{ color: COLORS.textMuted }}>{row.label}</span>
+            <span className="text-[10px] leading-snug" style={{ color: COLORS.textDark }}>{row.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Take Status Badge ──────────────────────────────────────────────────────
+
+function TakeStatusBadge({ status }: { status: "approved" | "review" | "rejected" }) {
+  const config = {
+    approved: { label: "Approved", bg: "rgba(34,160,107,0.08)", color: COLORS.green },
+    review: { label: "Review", bg: "rgba(194,154,91,0.1)", color: COLORS.gold },
+    rejected: { label: "Rejected", bg: "rgba(229,62,62,0.06)", color: "#E53E3E" },
+  }
+  const c = config[status]
+  return (
+    <span
+      className="text-[7px] font-bold tracking-[0.06em] uppercase px-1.5 py-0.5 rounded-full inline-block"
+      style={{ backgroundColor: c.bg, color: c.color }}
+    >
+      {c.label}
+    </span>
   )
 }
 
