@@ -185,25 +185,13 @@ export default function ProductionWorkspacePage() {
         {/* ═══ CONTENT ═══ */}
         <div className="max-w-[1400px] mx-auto px-6 pb-20">
           {activeTab === "concept" && <ConceptTab production={production} />}
-          {activeTab === "post" && (
-            <PlaceholderTab
-              title="Post"
-              subtitle="The source post and its argument spine."
-              icon={FileText}
-            />
-          )}
+          {activeTab === "post" && <PostTab production={production} />}
           {activeTab === "script" && <ScriptTab production={production} />}
           {activeTab === "frames" && <FramesTab production={production} />}
           {activeTab === "scenes" && <ScenesTab production={production} />}
           {activeTab === "edit" && <EditTab production={production} />}
           {activeTab === "package" && <PackageTab production={production} />}
-          {activeTab === "memory" && (
-            <PlaceholderTab
-              title="Memory"
-              subtitle="What the Studio learned from this production."
-              icon={Brain}
-            />
-          )}
+          {activeTab === "memory" && <MemoryTab production={production} />}
         </div>
       </div>
     </Shell>
@@ -3796,6 +3784,526 @@ function PackageTab({ production }: { production: Production }) {
 
           {/* Production Summary */}
           <ProductionSummaryCard production={production} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// POST TAB (4A)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+type PostView = "original" | "studio" | "approved" | "history"
+
+const POST_INTELLIGENCE = [
+  { label: "Central argument", value: "Systems that run on Tai's laptop aren't systems — they're dependencies waiting to break." },
+  { label: "Reader before", value: "Relying on clever hacks that work 'for now'" },
+  { label: "Reader after", value: "Thinking in durable architecture — cloud-first, failure-tolerant" },
+  { label: "Emotional movement", value: "Anxiety → clarity → resolve" },
+  { label: "Claims to protect", value: "Dependency is a hidden cost. Cloud-first is a design choice, not an upgrade." },
+  { label: "Voice alignment", value: "Direct, systems-thinking, no softening. The founding sentence lands hard." },
+]
+
+const POST_HISTORY = [
+  { version: "v3 — Studio revision", date: "Today, 2:14 PM", note: "Tightened opening, removed hedge in third paragraph" },
+  { version: "v2 — Studio revision", date: "Today, 11:50 AM", note: "Restructured for clarity on emotional arc" },
+  { version: "v1 — Original", date: "Today, 10:07 AM", note: "Source post as imported" },
+]
+
+function PostTab({ production }: { production: Production }) {
+  const [view, setView] = useState<PostView>("original")
+  const [editing, setEditing] = useState(false)
+  const [postText, setPostText] = useState(
+    `There is a moment in every founder's journey where a system they built — designed to run without them — starts to require them.\n\nThe scraper that needs a restart. The pipeline that only works from your machine. The cron job tied to your laptop's Wi-Fi.\n\nThis is not a technical problem. It is an architectural one.\n\nCloud-first is not an upgrade. It is a design principle. And every time we skip it, we pay in the form of fragility dressed up as "working."\n\nThe cost isn't always visible. It hides in the 2am restart. The deal delayed because the system was down. The client who noticed before you did.\n\nBuild for absence. Design as if you are not there. That is the only honest architecture.`
+  )
+  const [approved, setApproved] = useState(false)
+  const [showImpact, setShowImpact] = useState(false)
+
+  const wordCount = postText.trim().split(/\s+/).filter(Boolean).length
+  const charCount = postText.length
+
+  const viewLabels: Record<PostView, string> = {
+    original: "Original",
+    studio: "Studio revision",
+    approved: "Approved",
+    history: "History",
+  }
+
+  return (
+    <div className="pt-6">
+      <div className="grid grid-cols-[1fr_320px] gap-5">
+        {/* ═══ LEFT: POST EDITOR ═══ */}
+        <div className="space-y-4">
+          {/* View switcher */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1 rounded-lg p-1" style={{ backgroundColor: COLORS.cream }}>
+              {(["original", "studio", "approved", "history"] as PostView[]).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => { setView(v); setEditing(false) }}
+                  className="text-[10px] font-medium px-3 py-1.5 rounded-md transition-all"
+                  style={{
+                    backgroundColor: view === v ? COLORS.white : "transparent",
+                    color: view === v ? COLORS.textDark : COLORS.textMuted,
+                    boxShadow: view === v ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                  }}
+                >
+                  {viewLabels[v]}
+                </button>
+              ))}
+            </div>
+            {!approved && view !== "history" && (
+              <button
+                onClick={() => setEditing(!editing)}
+                className="flex items-center gap-1.5 text-[10px] font-medium px-3 py-1.5 rounded-lg border transition-colors hover:bg-black/5"
+                style={{ borderColor: COLORS.border, color: COLORS.textMid }}
+              >
+                <PenLine className="w-3 h-3" />
+                {editing ? "Done editing" : "Edit post"}
+              </button>
+            )}
+          </div>
+
+          {/* Post body */}
+          {view === "history" ? (
+            <div className="rounded-xl border p-4 space-y-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+              <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.textMid }}>Edit history</p>
+              {POST_HISTORY.map((h) => (
+                <div key={h.version} className="flex items-start gap-3 py-3 border-t" style={{ borderColor: COLORS.borderLight }}>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: `${COLORS.navy}08` }}>
+                    <History className="w-3 h-3" style={{ color: COLORS.textMid }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-[11px] font-semibold" style={{ color: COLORS.textDark }}>{h.version}</p>
+                      <p className="text-[9px]" style={{ color: COLORS.textMuted }}>{h.date}</p>
+                    </div>
+                    <p className="text-[10px]" style={{ color: COLORS.textMid }}>{h.note}</p>
+                  </div>
+                  <button className="text-[9px] font-medium px-2 py-1 rounded-lg border transition-colors hover:bg-black/5 flex-shrink-0" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+                    Restore
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: COLORS.white, borderColor: approved ? "rgba(34,160,107,0.3)" : COLORS.borderLight }}>
+              {approved && (
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b" style={{ backgroundColor: "rgba(34,160,107,0.06)", borderColor: "rgba(34,160,107,0.2)" }}>
+                  <Shield className="w-3 h-3" style={{ color: COLORS.green }} />
+                  <p className="text-[10px] font-semibold" style={{ color: COLORS.green }}>Source of truth locked</p>
+                  <p className="text-[10px] ml-auto" style={{ color: COLORS.textMuted }}>Changes will trigger downstream impact warnings</p>
+                </div>
+              )}
+              {editing ? (
+                <textarea
+                  value={postText}
+                  onChange={(e) => { setPostText(e.target.value); if (approved) setShowImpact(true) }}
+                  className="w-full p-5 text-[13px] leading-relaxed resize-none outline-none"
+                  style={{ color: COLORS.textDark, minHeight: 360, fontFamily: "inherit" }}
+                />
+              ) : (
+                <div className="p-5">
+                  <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: COLORS.textDark }}>{postText}</p>
+                </div>
+              )}
+              <div className="flex items-center justify-between px-4 py-2.5 border-t" style={{ borderColor: COLORS.borderLight }}>
+                <div className="flex items-center gap-4">
+                  <span className="text-[9px]" style={{ color: COLORS.textMuted }}>{wordCount} words</span>
+                  <span className="text-[9px]" style={{ color: COLORS.textMuted }}>{charCount} characters</span>
+                  <span className="text-[9px]" style={{ color: wordCount > 700 ? "#D97706" : COLORS.textMuted }}>LinkedIn limit: 3000</span>
+                </div>
+                {!approved ? (
+                  <button
+                    onClick={() => setApproved(true)}
+                    className="flex items-center gap-1.5 text-[10px] font-semibold px-4 py-1.5 rounded-lg transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: COLORS.navy, color: "#FFFFFF" }}
+                  >
+                    <Check className="w-3 h-3" style={{ color: COLORS.gold }} />
+                    Approve post
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5" style={{ color: COLORS.green }} />
+                    <span className="text-[10px] font-semibold" style={{ color: COLORS.green }}>Approved</span>
+                    <button onClick={() => setApproved(false)} className="text-[9px] ml-2 transition-colors hover:underline" style={{ color: COLORS.textMuted }}>Unlock</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Impact warning */}
+          {showImpact && approved && (
+            <div className="rounded-xl border p-4" style={{ backgroundColor: "rgba(245,158,11,0.05)", borderColor: "rgba(245,158,11,0.25)" }}>
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#D97706" }} />
+                <div className="flex-1">
+                  <p className="text-[11px] font-semibold mb-1" style={{ color: "#92400E" }}>Post-approval change detected</p>
+                  <p className="text-[10px]" style={{ color: "#B45309" }}>Editing the approved post may affect downstream assets — Script scenes, Frames, and Concept premise. Review impact before saving.</p>
+                  <div className="flex items-center gap-2 mt-3">
+                    <button className="text-[10px] font-medium px-3 py-1.5 rounded-lg border transition-colors hover:bg-black/5" style={{ borderColor: "rgba(217,119,6,0.4)", color: "#92400E" }}>Review impact</button>
+                    <button onClick={() => setShowImpact(false)} className="text-[10px] transition-colors hover:underline" style={{ color: COLORS.textMuted }}>Dismiss</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ═══ RIGHT: POST INTELLIGENCE ═══ */}
+        <div className="space-y-4">
+          {/* Argument spine */}
+          <div className="rounded-xl border p-4" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            <div className="flex items-center gap-2 mb-3">
+              <Target className="w-3.5 h-3.5" style={{ color: COLORS.gold }} />
+              <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.textMid }}>Post Intelligence</p>
+            </div>
+            <div className="space-y-3">
+              {POST_INTELLIGENCE.map((item) => (
+                <div key={item.label} className="space-y-1">
+                  <p className="text-[9px] font-semibold tracking-[0.08em] uppercase" style={{ color: COLORS.textMuted }}>{item.label}</p>
+                  <p className="text-[11px] leading-snug" style={{ color: COLORS.textDark }}>{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Approval status */}
+          <div
+            className="rounded-xl border p-4"
+            style={{
+              backgroundColor: approved ? "rgba(34,160,107,0.04)" : "rgba(26,35,50,0.03)",
+              borderColor: approved ? "rgba(34,160,107,0.25)" : COLORS.borderLight,
+            }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              {approved ? (
+                <Shield className="w-3.5 h-3.5" style={{ color: COLORS.green }} />
+              ) : (
+                <Shield className="w-3.5 h-3.5" style={{ color: COLORS.textMuted }} />
+              )}
+              <p className="text-[10px] font-bold" style={{ color: approved ? COLORS.green : COLORS.textMid }}>
+                {approved ? "Post approved" : "Post not yet approved"}
+              </p>
+            </div>
+            <p className="text-[10px] leading-snug" style={{ color: COLORS.textMid }}>
+              {approved
+                ? "This post is locked as the source of truth. Every film, script, and frame must serve this argument."
+                : "Approve the post to lock it as source of truth. Concept generation requires an approved post."}
+            </p>
+            {!approved && (
+              <button
+                onClick={() => setApproved(true)}
+                className="w-full mt-3 text-[10px] font-semibold px-3 py-2 rounded-lg transition-opacity hover:opacity-90"
+                style={{ backgroundColor: COLORS.navy, color: "#FFFFFF" }}
+              >
+                Approve post
+              </button>
+            )}
+          </div>
+
+          {/* Studio actions */}
+          <div className="rounded-xl border p-4" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: COLORS.textMid }}>Studio actions</p>
+            <div className="space-y-2">
+              {[
+                { icon: Sparkles, label: "Refine with Studio", sub: "Let Studio tighten the argument" },
+                { icon: GitCompare, label: "Compare versions", sub: "Side-by-side diff" },
+                { icon: Zap, label: "Extract intelligence", sub: "Re-analyze argument spine" },
+              ].map((action) => {
+                const Icon = action.icon
+                return (
+                  <button
+                    key={action.label}
+                    className="w-full flex items-center gap-3 p-2.5 rounded-lg text-left border transition-colors hover:bg-black/[0.02]"
+                    style={{ borderColor: COLORS.borderLight }}
+                  >
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${COLORS.gold}10` }}>
+                      <Icon className="w-3 h-3" style={{ color: COLORS.gold }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-semibold" style={{ color: COLORS.textDark }}>{action.label}</p>
+                      <p className="text-[9px]" style={{ color: COLORS.textMuted }}>{action.sub}</p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MEMORY TAB (4H)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+type MemoryGroup = "brand_rules" | "voice" | "characters" | "places" | "symbols" | "visual_rules" | "corrections" | "related_posts" | "signals"
+
+const MEMORY_USED: { group: MemoryGroup; label: string; items: { title: string; excerpt: string; confidence: number; source: string }[] }[] = [
+  {
+    group: "voice",
+    label: "Voice",
+    items: [
+      { title: "No softening language", excerpt: "Avoid hedge words: 'perhaps', 'might', 'could potentially'. The founding sentence should land hard.", confidence: 96, source: "World Bible — Voice" },
+      { title: "Systems-thinking register", excerpt: "Posts perform best when they move from observable symptom to structural diagnosis to named principle.", confidence: 88, source: "World Bible — Voice" },
+    ],
+  },
+  {
+    group: "brand_rules",
+    label: "Brand Rules",
+    items: [
+      { title: "Spirit First — no spectacle", excerpt: "Dignity over drama. Never sensationalize founder pain or use struggle as entertainment.", confidence: 99, source: "World Bible — Constitution" },
+    ],
+  },
+  {
+    group: "characters",
+    label: "Characters",
+    items: [
+      { title: "The Architect (visual persona)", excerpt: "Appears in structural/systems posts. Mid-40s, steady gaze, working environment. Used in 4 prior productions.", confidence: 84, source: "World Bible — Characters" },
+    ],
+  },
+  {
+    group: "symbols",
+    label: "Symbols",
+    items: [
+      { title: "The laptop as vulnerability", excerpt: "Physical device = single point of failure. Used twice before; limit reuse.", confidence: 79, source: "World Bible — Symbols" },
+    ],
+  },
+  {
+    group: "visual_rules",
+    label: "Visual Rules",
+    items: [
+      { title: "Architectural interiors", excerpt: "Systems posts use structured spaces: server rooms, drafting tables, clean desktops. No clutter.", confidence: 91, source: "World Bible — Visual Language" },
+      { title: "Portrait-first aspect", excerpt: "Default to 9:16 portrait for character-focused shots. Landscape reserved for wide environment shots only.", confidence: 94, source: "World Bible — Visual Language" },
+    ],
+  },
+  {
+    group: "related_posts",
+    label: "Related Posts",
+    items: [
+      { title: "The hidden cost of convenience", excerpt: "Published 2026-07-14. Same structural-dependency thesis. Check for overlap before finalizing.", confidence: 73, source: "Story Threads — Architecture" },
+    ],
+  },
+]
+
+const MEMORY_LEARNED: { title: string; category: string; draft: string; status: "pending" | "approved" | "rejected" }[] = [
+  { title: "Laptop metaphor resonance", category: "Signals", draft: "The laptop-as-vulnerability image generated unusually high save rate (4.2%) on this production. Consider adding to Symbols with 'high-resonance' flag.", status: "pending" },
+  { title: "Opening with a 'moment' construction", category: "Voice", draft: "'There is a moment in every...' opening pattern used here for the first time. If post performs, add to approved sentence patterns.", status: "pending" },
+  { title: "Architectural interiors — indoor lighting rule", category: "Visual Rules", draft: "Diffused overhead light worked better than directional spots on the Architect character in this production. Worth adding as a lighting refinement.", status: "pending" },
+]
+
+const MEMORY_GROUP_COLORS: Record<MemoryGroup, string> = {
+  brand_rules: "#7C3AED",
+  voice: "#2563EB",
+  characters: "#D97706",
+  places: "#059669",
+  symbols: "#DC2626",
+  visual_rules: "#0891B2",
+  corrections: "#B45309",
+  related_posts: "#6B7280",
+  signals: "#22C55E",
+}
+
+function MemoryTab({ production }: { production: Production }) {
+  const [expandedGroups, setExpandedGroups] = useState<Set<MemoryGroup>>(new Set(["voice", "visual_rules"]))
+  const [pendingDecisions, setPendingDecisions] = useState<Record<string, "approved" | "rejected" | null>>(() => {
+    const init: Record<string, null> = {}
+    MEMORY_LEARNED.forEach((m) => { init[m.title] = null })
+    return init
+  })
+
+  const toggleGroup = (g: MemoryGroup) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(g)) next.delete(g)
+      else next.add(g)
+      return next
+    })
+  }
+
+  const decide = (title: string, decision: "approved" | "rejected") => {
+    setPendingDecisions((prev) => ({ ...prev, [title]: decision }))
+  }
+
+  const pendingCount = Object.values(pendingDecisions).filter((v) => v === null).length
+  const approvedCount = Object.values(pendingDecisions).filter((v) => v === "approved").length
+
+  return (
+    <div className="pt-6">
+      <div className="grid grid-cols-[1fr_340px] gap-5">
+        {/* ═══ LEFT: MEMORY USED ═══ */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-serif text-base" style={{ color: COLORS.textDark }}>Memory used in this production</p>
+              <p className="text-[10px] mt-0.5" style={{ color: COLORS.textMid }}>{MEMORY_USED.reduce((acc, g) => acc + g.items.length, 0)} memories drawn from the World Bible</p>
+            </div>
+            <button className="flex items-center gap-1.5 text-[10px] font-medium px-3 py-1.5 rounded-lg border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+              <Eye className="w-3 h-3" />
+              Full World Bible
+            </button>
+          </div>
+
+          {MEMORY_USED.map((group) => {
+            const isOpen = expandedGroups.has(group.group)
+            const accentColor = MEMORY_GROUP_COLORS[group.group] || COLORS.textMid
+
+            return (
+              <div key={group.group} className="rounded-xl border overflow-hidden" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+                <button
+                  onClick={() => toggleGroup(group.group)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left transition-colors hover:bg-black/[0.01]"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: accentColor }} />
+                    <p className="text-[11px] font-semibold" style={{ color: COLORS.textDark }}>{group.label}</p>
+                    <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${accentColor}12`, color: accentColor }}>
+                      {group.items.length}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    className="w-3.5 h-3.5 transition-transform"
+                    style={{ color: COLORS.textMuted, transform: isOpen ? "rotate(180deg)" : "none" }}
+                  />
+                </button>
+
+                {isOpen && (
+                  <div className="border-t" style={{ borderColor: COLORS.borderLight }}>
+                    {group.items.map((item, i) => (
+                      <div
+                        key={item.title}
+                        className="px-4 py-3 flex items-start gap-3"
+                        style={{ borderTop: i > 0 ? `1px solid ${COLORS.borderLight}` : "none" }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-[11px] font-semibold" style={{ color: COLORS.textDark }}>{item.title}</p>
+                            <div className="flex items-center gap-1 flex-shrink-0 ml-3">
+                              <div className="h-1 w-12 rounded-full overflow-hidden" style={{ backgroundColor: COLORS.borderLight }}>
+                                <div className="h-full rounded-full" style={{ width: `${item.confidence}%`, backgroundColor: item.confidence >= 90 ? COLORS.green : item.confidence >= 75 ? COLORS.gold : "#9CA3AF" }} />
+                              </div>
+                              <span className="text-[8px] font-medium" style={{ color: COLORS.textMuted }}>{item.confidence}%</span>
+                            </div>
+                          </div>
+                          <p className="text-[10px] leading-snug mb-1.5" style={{ color: COLORS.textMid }}>{item.excerpt}</p>
+                          <p className="text-[9px]" style={{ color: COLORS.textMuted }}>Source: {item.source}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* ═══ RIGHT: MEMORY LEARNED + GOVERNANCE ═══ */}
+        <div className="space-y-4">
+          {/* Governance header */}
+          <div className="rounded-xl border p-4" style={{ backgroundColor: "rgba(194,154,91,0.04)", borderColor: "rgba(194,154,91,0.2)" }}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <Shield className="w-3.5 h-3.5" style={{ color: COLORS.gold }} />
+              <p className="text-[10px] font-bold" style={{ color: COLORS.textDark }}>Memory governance</p>
+            </div>
+            <p className="text-[10px] leading-snug" style={{ color: COLORS.textMid }}>
+              Nothing from this production becomes permanent without your approval. Studio suggests — you decide.
+            </p>
+            {pendingCount > 0 && (
+              <div className="flex items-center gap-1.5 mt-2.5">
+                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: COLORS.gold }} />
+                <span className="text-[10px] font-semibold" style={{ color: COLORS.gold }}>{pendingCount} decision{pendingCount > 1 ? "s" : ""} pending</span>
+              </div>
+            )}
+            {approvedCount > 0 && (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <Check className="w-3 h-3" style={{ color: COLORS.green }} />
+                <span className="text-[10px] font-semibold" style={{ color: COLORS.green }}>{approvedCount} saved to World Bible</span>
+              </div>
+            )}
+          </div>
+
+          {/* Memory learned */}
+          <div className="rounded-xl border p-4" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: COLORS.textMid }}>Potential new learnings</p>
+            <div className="space-y-3">
+              {MEMORY_LEARNED.map((item) => {
+                const decision = pendingDecisions[item.title]
+                return (
+                  <div
+                    key={item.title}
+                    className="rounded-lg border p-3"
+                    style={{
+                      borderColor: decision === "approved" ? "rgba(34,160,107,0.3)" : decision === "rejected" ? COLORS.borderLight : "rgba(194,154,91,0.25)",
+                      backgroundColor: decision === "approved" ? "rgba(34,160,107,0.03)" : decision === "rejected" ? "rgba(138,133,120,0.03)" : "rgba(194,154,91,0.03)",
+                      opacity: decision === "rejected" ? 0.6 : 1,
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-1.5">
+                      <div className="flex-1 min-w-0 pr-2">
+                        <p className="text-[10px] font-semibold" style={{ color: COLORS.textDark }}>{item.title}</p>
+                        <span className="text-[8px] font-medium px-1.5 py-0.5 rounded-full mt-0.5 inline-block" style={{ backgroundColor: "rgba(138,133,120,0.08)", color: COLORS.textMuted }}>{item.category}</span>
+                      </div>
+                      {decision ? (
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {decision === "approved" ? (
+                            <><Check className="w-3 h-3" style={{ color: COLORS.green }} /><span className="text-[9px] font-medium" style={{ color: COLORS.green }}>Saved</span></>
+                          ) : (
+                            <><X className="w-3 h-3" style={{ color: COLORS.textMuted }} /><span className="text-[9px]" style={{ color: COLORS.textMuted }}>Skipped</span></>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                    <p className="text-[10px] leading-snug mb-3" style={{ color: COLORS.textMid }}>{item.draft}</p>
+                    {!decision && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => decide(item.title, "approved")}
+                          className="flex-1 flex items-center justify-center gap-1 text-[9px] font-semibold px-2 py-1.5 rounded-lg transition-opacity hover:opacity-90"
+                          style={{ backgroundColor: COLORS.navy, color: "#FFFFFF" }}
+                        >
+                          <Check className="w-2.5 h-2.5" style={{ color: COLORS.gold }} />
+                          Save to World Bible
+                        </button>
+                        <button
+                          onClick={() => decide(item.title, "rejected")}
+                          className="flex items-center justify-center text-[9px] font-medium px-2 py-1.5 rounded-lg border transition-colors hover:bg-black/5"
+                          style={{ borderColor: COLORS.border, color: COLORS.textMid }}
+                        >
+                          Skip
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Production memory summary */}
+          <div className="rounded-xl border p-4" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+            <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: COLORS.textMid }}>Production memory summary</p>
+            <div className="space-y-2">
+              {[
+                { label: "Memories used", value: `${MEMORY_USED.reduce((acc, g) => acc + g.items.length, 0)}`, sub: "drawn from World Bible" },
+                { label: "Groups accessed", value: `${MEMORY_USED.length}`, sub: "of 9 memory categories" },
+                { label: "Pending decisions", value: `${pendingCount}`, sub: "potential new learnings" },
+                { label: "Saved to World", value: `${approvedCount}`, sub: "approved by Tai" },
+              ].map((stat) => (
+                <div key={stat.label} className="flex items-center justify-between py-2 border-t" style={{ borderColor: COLORS.borderLight }}>
+                  <div>
+                    <p className="text-[10px] font-medium" style={{ color: COLORS.textDark }}>{stat.label}</p>
+                    <p className="text-[9px]" style={{ color: COLORS.textMuted }}>{stat.sub}</p>
+                  </div>
+                  <p className="text-base font-bold" style={{ color: COLORS.navy }}>{stat.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

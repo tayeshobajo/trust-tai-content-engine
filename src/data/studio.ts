@@ -165,6 +165,15 @@ export interface FilmPlan {
   characterRefs?: Record<string, string>
 }
 
+/** A scoped exception to a World Bible rule for this production only */
+export interface WorldRuleException {
+  id: string
+  ruleId: string
+  reason: string
+  approvedBy: string
+  approvedAt: string
+}
+
 export type LibraryStatus = "in_production" | "ready" | "published" | "archived"
 
 export interface PublishPackage {
@@ -191,6 +200,41 @@ export interface Production {
   revisions: Revision[]
   gates: Record<GateKey, Gate>
   film: FilmPlan
+  // ── Production Definition (QA Section 2) ──────────────────────────────────
+  /** Target duration of the final film in seconds */
+  targetDurationSec?: number
+  /** Required export aspect ratios e.g. ["16:9", "9:16", "1:1"] */
+  aspectRatios?: string[]
+  /** Intended publication platform */
+  platform?: "linkedin" | "instagram" | "x" | "youtube"
+  /** The desired emotional state the audience should reach */
+  desiredEmotion?: string
+  /** The final image or feeling the audience should retain */
+  finalFeeling?: string
+  /** Estimated generation credit budget */
+  generationBudget?: number
+  /** Person responsible for the next unresolved decision */
+  decisionOwner?: string
+  // ── Source Truth Lock (QA Section 1) ─────────────────────────────────────
+  /** ID of the linked VersionedPost */
+  linkedPostId?: string
+  /** Version of the post this production was built against */
+  linkedPostVersion?: number
+  /** Central argument the film must serve */
+  centralArgument?: string
+  /** Claims the film must not contradict */
+  protectedClaims?: string[]
+  // ── World Bible Binding (QA Section 4) ───────────────────────────────────
+  /** World Bible version loaded for this production */
+  worldBibleVersion?: string
+  /** Rule IDs explicitly activated for this production */
+  activeWorldRules?: string[]
+  /** Rule IDs excluded from this production (without deleting globally) */
+  excludedWorldRules?: string[]
+  /** Production-scoped exceptions to World Bible rules */
+  productionExceptions?: WorldRuleException[]
+  /** Which World memories influenced which generated assets */
+  worldMemoryInfluences?: { assetId: string; memoryIds: string[] }[]
 }
 
 export function assembleArgument(sections: ArgumentSection[]): string {

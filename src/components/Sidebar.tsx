@@ -10,6 +10,11 @@ import {
   Layers,
   Lightbulb,
   Globe,
+  Users,
+  MapPin,
+  Package,
+  Brain,
+  ShieldCheck,
   TrendingUp,
   Settings,
   X,
@@ -28,6 +33,11 @@ const navItems: NavItem[] = [
   { label: "Productions", href: "/productions", icon: Layers, badgeKey: "decisions" },
   { label: "Ideas", href: "/ideas", icon: Lightbulb },
   { label: "World", href: "/world", icon: Globe },
+  { label: "Characters", href: "/characters", icon: Users },
+  { label: "Places", href: "/places", icon: MapPin },
+  { label: "Props", href: "/props", icon: Package },
+  { label: "Memory", href: "/memory", icon: Brain },
+  { label: "QA", href: "/qa", icon: ShieldCheck },
   { label: "Signals", href: "/signals", icon: TrendingUp },
 ];
 
