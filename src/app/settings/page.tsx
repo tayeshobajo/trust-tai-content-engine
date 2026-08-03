@@ -636,17 +636,394 @@ function MemorySection() {
   )
 }
 
-// ─── Placeholder section ──────────────────────────────────────────────────────
+// ─── Production section ───────────────────────────────────────────────────────
 
-function PlaceholderSection({ title, description }: { title: string; description: string }) {
+function ProductionSection() {
+  const [autoConceptGen, setAutoConceptGen] = useState(true)
+  const [autoContinuityCheck, setAutoContinuityCheck] = useState(true)
+  const [autoFrameVariations, setAutoFrameVariations] = useState(false)
+  const [autoRenderAfterApproval, setAutoRenderAfterApproval] = useState(false)
+  const [memorySuggestions, setMemorySuggestions] = useState(true)
+  const [costLimit, setCostLimit] = useState("25")
+  const [approvalGate, setApprovalGate] = useState("10")
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold text-[#0F172A]">{title}</h2>
-        <p className="text-sm text-[#64748B] mt-1">{description}</p>
+        <h2 className="text-3xl font-bold text-[#0F172A]">Production</h2>
+        <p className="text-sm text-[#64748B] mt-1">Cost controls, approval gates, and automation for every production.</p>
       </div>
-      <div className="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center">
-        <p className="text-sm text-[#94A3B8]">Coming in a future Studio release.</p>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-sm font-bold text-[#0F172A] mb-1">Cost controls</h3>
+        <p className="text-xs text-[#64748B] mb-5">Budgets and approval gates prevent runaway generation costs.</p>
+        <div className="space-y-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-[#0F172A]">Per-production budget</p>
+              <p className="text-xs text-[#64748B] mt-0.5">Maximum spend per production before a warning fires.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-[#64748B]">$</span>
+              <input value={costLimit} onChange={e => setCostLimit(e.target.value)}
+                className="w-20 text-sm text-right px-3 py-1.5 rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-[#0F172A]"
+                type="number" min="0" />
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-[#0F172A]">Approval gate at</p>
+              <p className="text-xs text-[#64748B] mt-0.5">Pause and require approval when spend exceeds this amount.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-[#64748B]">$</span>
+              <input value={approvalGate} onChange={e => setApprovalGate(e.target.value)}
+                className="w-20 text-sm text-right px-3 py-1.5 rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-[#0F172A]"
+                type="number" min="0" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-sm font-bold text-[#0F172A] mb-1">Automation</h3>
+        <p className="text-xs text-[#64748B] mb-5">What the Studio does automatically without waiting for a decision.</p>
+        <div className="space-y-4">
+          {[
+            { label: "Auto concept generation", sub: "Generate 3 concept directions when a post is approved.", val: autoConceptGen, set: setAutoConceptGen },
+            { label: "Auto continuity check", sub: "Run a continuity scan after every frame render.", val: autoContinuityCheck, set: setAutoContinuityCheck },
+            { label: "Auto frame variations", sub: "Generate 3 frame alternates after master frame approval.", val: autoFrameVariations, set: setAutoFrameVariations },
+            { label: "Auto-render after approval", sub: "Begin scene generation immediately after frames are approved.", val: autoRenderAfterApproval, set: setAutoRenderAfterApproval },
+            { label: "Memory suggestions", sub: "Surface relevant World Bible entries at each approval gate.", val: memorySuggestions, set: setMemorySuggestions },
+          ].map(({ label, sub, val, set }) => (
+            <div key={label} className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-[#0F172A]">{label}</p>
+                <p className="text-xs text-[#64748B] mt-0.5">{sub}</p>
+              </div>
+              <Toggle on={val} onChange={set} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-sm font-bold text-[#0F172A] mb-1">Quality thresholds</h3>
+        <p className="text-xs text-[#64748B] mb-5">Minimum scores before an asset can proceed to the next gate.</p>
+        <div className="space-y-4">
+          {[
+            { label: "Frame continuity minimum", value: "80%", note: "Below this, frame is flagged for review before scene generation." },
+            { label: "Script-to-post alignment minimum", value: "85%", note: "Below this, script is flagged with divergence warning." },
+            { label: "Coherence check threshold", value: "75%", note: "Below this, character coherence warning surfaces before approval." },
+          ].map(({ label, value, note }) => (
+            <div key={label} className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-[#0F172A]">{label}</p>
+                <p className="text-xs text-[#64748B] mt-0.5">{note}</p>
+              </div>
+              <span className="text-sm font-bold text-[#0F172A] flex-shrink-0">{value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Release section ───────────────────────────────────────────────────────────
+
+function ReleaseSection() {
+  const [defaultRatio, setDefaultRatio] = useState("9:16")
+  const [defaultDuration, setDefaultDuration] = useState("30-45s")
+  const [autoCaptions, setAutoCaptions] = useState(true)
+  const [exportQuality, setExportQuality] = useState("1080p")
+  const [namingPattern, setNamingPattern] = useState("{title}_{date}_{format}")
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-3xl font-bold text-[#0F172A]">Release</h2>
+        <p className="text-sm text-[#64748B] mt-1">Format defaults, export quality, and naming conventions for every package.</p>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-sm font-bold text-[#0F172A] mb-1">Format defaults</h3>
+        <p className="text-xs text-[#64748B] mb-5">Applied to every new production unless overridden at the frame or scene stage.</p>
+        <div className="space-y-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-[#0F172A]">Default aspect ratio</p>
+              <p className="text-xs text-[#64748B] mt-0.5">Portrait-first for LinkedIn and Instagram Reels.</p>
+            </div>
+            <select value={defaultRatio} onChange={e => setDefaultRatio(e.target.value)}
+              className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-[#0F172A]">
+              {["9:16", "1:1", "16:9", "4:5"].map(r => <option key={r}>{r}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-[#0F172A]">Default duration target</p>
+              <p className="text-xs text-[#64748B] mt-0.5">Script pacing and scene timing are calibrated to this range.</p>
+            </div>
+            <select value={defaultDuration} onChange={e => setDefaultDuration(e.target.value)}
+              className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-[#0F172A]">
+              {["15-20s", "20-30s", "30-45s", "45-60s", "60-90s"].map(d => <option key={d}>{d}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-[#0F172A]">Auto-generate captions</p>
+              <p className="text-xs text-[#64748B] mt-0.5">Generate a captioned variant for every approved film.</p>
+            </div>
+            <Toggle on={autoCaptions} onChange={setAutoCaptions} />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-[#0F172A]">Export quality</p>
+              <p className="text-xs text-[#64748B] mt-0.5">Resolution for final package exports.</p>
+            </div>
+            <select value={exportQuality} onChange={e => setExportQuality(e.target.value)}
+              className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-[#0F172A]">
+              {["720p", "1080p", "4K"].map(q => <option key={q}>{q}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-sm font-bold text-[#0F172A] mb-1">File naming</h3>
+        <p className="text-xs text-[#64748B] mb-4">Pattern for exported files. Variables: {"{title}"}, {"{date}"}, {"{format}"}, {"{version}"}.</p>
+        <input value={namingPattern} onChange={e => setNamingPattern(e.target.value)}
+          className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-[#0F172A] font-mono" />
+        <p className="text-xs text-[#94A3B8] mt-2">Preview: the-man-who-carried_2026-07-28_9x16</p>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-sm font-bold text-[#0F172A] mb-1">Auto-generated format variants</h3>
+        <p className="text-xs text-[#64748B] mb-5">Variants generated automatically from the master cut after final approval.</p>
+        <div className="space-y-3">
+          {[
+            { label: "Vertical (9:16)", sub: "LinkedIn / Instagram Reels default", active: true },
+            { label: "Square (1:1)", sub: "Instagram feed", active: true },
+            { label: "Landscape (16:9)", sub: "YouTube / embeds", active: false },
+            { label: "Captioned", sub: "Open captions burned in", active: true },
+            { label: "Clean (no captions)", sub: "For overlay or re-captioning", active: false },
+            { label: "Audio-described", sub: "Accessibility variant", active: false },
+          ].map(({ label, sub, active }) => (
+            <div key={label} className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-[#0F172A]">{label}</p>
+                <p className="text-xs text-[#64748B]">{sub}</p>
+              </div>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${active ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-[#94A3B8]"}`}>{active ? "On" : "Off"}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Brand section ────────────────────────────────────────────────────────────
+
+function BrandSection() {
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-3xl font-bold text-[#0F172A]">Brand</h2>
+        <p className="text-sm text-[#64748B] mt-1">Visual tokens, color palette, and typographic standards that govern the world.</p>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-sm font-bold text-[#0F172A] mb-1">Color palette</h3>
+        <p className="text-xs text-[#64748B] mb-5">The approved palette for all productions.</p>
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            { name: "Warm Cream", hex: "#F4F1EA", role: "Base / background" },
+            { name: "Deep Navy", hex: "#1A2332", role: "Primary / text" },
+            { name: "Studio Gold", hex: "#C29A5B", role: "Accent / CTA" },
+            { name: "Trust Blue", hex: "#2F62D8", role: "Link / action" },
+            { name: "Forest Green", hex: "#22A06B", role: "Approval / success" },
+            { name: "Amber", hex: "#E8802A", role: "Warning / caution" },
+            { name: "Midtone", hex: "#4A5568", role: "Body text" },
+            { name: "Muted", hex: "#8A8578", role: "Meta / captions" },
+          ].map(({ name, hex, role }) => (
+            <div key={name} className="space-y-2">
+              <div className="h-12 rounded-lg border border-gray-100" style={{ backgroundColor: hex }} />
+              <div>
+                <p className="text-[11px] font-semibold text-[#0F172A]">{name}</p>
+                <p className="text-[10px] font-mono text-[#94A3B8]">{hex}</p>
+                <p className="text-[10px] text-[#64748B]">{role}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-sm font-bold text-[#0F172A] mb-1">Typography</h3>
+        <p className="text-xs text-[#64748B] mb-5">Typefaces across productions and the Studio interface.</p>
+        <div className="space-y-4">
+          {[
+            { role: "Display / headings", family: "Playfair Display", usage: "Film titles, post headers, section headings", serif: true },
+            { role: "Body / UI", family: "Inter", usage: "All UI text, captions, descriptions", serif: false },
+            { role: "Mono / code", family: "JetBrains Mono", usage: "File names, IDs, technical metadata", serif: false },
+          ].map(({ role, family, usage, serif }) => (
+            <div key={role} className="py-3 border-t border-gray-100 first:border-0 first:pt-0">
+              <p className="text-xs font-bold text-[#94A3B8] uppercase tracking-widest mb-1">{role}</p>
+              <p className="text-base font-medium text-[#0F172A]" style={{ fontFamily: serif ? "serif" : "inherit" }}>{family}</p>
+              <p className="text-xs text-[#64748B] mt-0.5">{usage}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-sm font-bold text-[#0F172A] mb-1">Visual prohibitions</h3>
+        <p className="text-xs text-[#64748B] mb-5">Never permitted regardless of concept direction.</p>
+        <div className="space-y-2">
+          {[
+            "Blue-teal color grading (the Netflix look)",
+            "Desaturated / washed-out palettes",
+            "Lens flare as a stylistic choice",
+            "Stock-photography aesthetic",
+            "Crowded or chaotic compositions",
+            "Centered talking-head framing without environmental context",
+            "Comic-book or illustrated overlay styles",
+          ].map((item) => (
+            <div key={item} className="flex items-center gap-2.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
+              <p className="text-sm text-[#0F172A]">{item}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Engine section ───────────────────────────────────────────────────────────
+
+function EngineSection() {
+  const [imageModel, setImageModel] = useState("openai/gpt-image-1.5")
+  const [videoModel, setVideoModel] = useState("fal/kling-2")
+  const [fallbackModel, setFallbackModel] = useState("fal/wan-2.6")
+  const [imageFallback, setImageFallback] = useState("fal/flux-pro")
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-3xl font-bold text-[#0F172A]">Engine</h2>
+        <p className="text-sm text-[#64748B] mt-1">Model routing, preferred providers, and fallback order. Changes affect new productions only.</p>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-sm font-bold text-[#0F172A] mb-1">Model routing</h3>
+        <p className="text-xs text-[#64748B] mb-5">Preferred models for each generation task.</p>
+        <div className="space-y-5">
+          {[
+            { label: "Image generation", sub: "Frames, keyframes, character renders.", val: imageModel, set: setImageModel, opts: ["openai/gpt-image-1.5", "fal/flux-pro", "fal/ideogram-v3"] },
+            { label: "Image fallback", sub: "Used when primary model fails or times out.", val: imageFallback, set: setImageFallback, opts: ["fal/flux-pro", "fal/ideogram-v3", "openai/gpt-image-1.5"] },
+            { label: "Video / motion", sub: "Scene generation and motion clips.", val: videoModel, set: setVideoModel, opts: ["fal/kling-2", "fal/wan-2.6", "fal/minimax-video"] },
+            { label: "Video fallback", sub: "Used when primary video model fails.", val: fallbackModel, set: setFallbackModel, opts: ["fal/wan-2.6", "fal/kling-2", "fal/minimax-video"] },
+          ].map(({ label, sub, val, set, opts }) => (
+            <div key={label} className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-[#0F172A]">{label}</p>
+                <p className="text-xs text-[#64748B] mt-0.5">{sub}</p>
+              </div>
+              <select value={val} onChange={e => set(e.target.value)}
+                className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-[#0F172A]">
+                {opts.map(m => <option key={m}>{m}</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-sm font-bold text-[#0F172A] mb-1">Task routing</h3>
+        <p className="text-xs text-[#64748B] mb-5">Which model handles each Studio intelligence task.</p>
+        <div className="space-y-3">
+          {[
+            { task: "Concept generation", model: "claude-sonnet-4", note: "Narrative reasoning" },
+            { task: "Script writing", model: "claude-sonnet-4", note: "Long-form structured output" },
+            { task: "Post intelligence", model: "gpt-5.4-mini", note: "Analysis and extraction" },
+            { task: "Memory suggestions", model: "gpt-5.4-mini", note: "Vector similarity + ranking" },
+            { task: "Coherence checks", model: "gpt-5.4", note: "Vision + reasoning" },
+            { task: "Pattern analysis", model: "gpt-5.4", note: "Cross-production synthesis" },
+          ].map(({ task, model, note }) => (
+            <div key={task} className="flex items-start justify-between gap-4 py-2.5 border-t border-gray-100 first:border-0 first:pt-0">
+              <div>
+                <p className="text-sm font-medium text-[#0F172A]">{task}</p>
+                <p className="text-xs text-[#64748B]">{note}</p>
+              </div>
+              <span className="text-xs font-mono font-medium text-[#0F172A] flex-shrink-0 bg-gray-50 border border-gray-200 px-2 py-1 rounded">{model}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Data & security section ──────────────────────────────────────────────────
+
+function DataSection() {
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-3xl font-bold text-[#0F172A]">Data & security</h2>
+        <p className="text-sm text-[#64748B] mt-1">Export your data, manage access, and control what the Studio retains.</p>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-sm font-bold text-[#0F172A] mb-1">Export</h3>
+        <p className="text-xs text-[#64748B] mb-5">Full data export includes productions, scripts, frames, packages, world bible, signals, and memory.</p>
+        <div className="space-y-3">
+          {[
+            { label: "Full Studio export", sub: "Everything — productions, world, memory, signals", format: ".zip" },
+            { label: "Productions only", sub: "Posts, scripts, frame metadata, and packages", format: ".json" },
+            { label: "World Bible", sub: "Constitution, voice, characters, symbols, visual rules, memory", format: ".md" },
+            { label: "Signals data", sub: "Performance records and pattern analysis", format: ".csv" },
+          ].map(({ label, sub, format }) => (
+            <div key={label} className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-[#0F172A]">{label}</p>
+                <p className="text-xs text-[#64748B]">{sub}</p>
+              </div>
+              <button className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 bg-white transition-colors hover:bg-gray-50">
+                Export {format}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-sm font-bold text-[#0F172A] mb-1">Data deletion</h3>
+        <p className="text-xs text-[#64748B] mb-5">Permanent actions. Cannot be undone.</p>
+        <div className="space-y-3">
+          {[
+            { label: "Clear all signals", sub: "Remove all performance records and pattern analysis", high: false },
+            { label: "Reset memory", sub: "Delete all learned preferences and locked truths", high: true },
+            { label: "Delete all productions", sub: "Remove all productions, scripts, frames, and packages", high: true },
+          ].map(({ label, sub, high }) => (
+            <div key={label} className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-[#0F172A]">{label}</p>
+                <p className="text-xs text-[#64748B]">{sub}</p>
+              </div>
+              <button className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${high ? "border-red-200 text-red-600 hover:bg-red-50" : "border-gray-200 text-[#64748B] hover:bg-gray-50"}`}>
+                {high ? "Delete…" : "Clear…"}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-sm font-bold text-[#0F172A] mb-1">Workspace access</h3>
+        <p className="text-xs text-[#64748B] mb-5">Who can access this Studio workspace.</p>
+        <div className="flex items-center justify-between gap-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2" style={{ borderColor: "#C29A5B", color: "#C29A5B" }}>TS</div>
+            <div>
+              <p className="text-sm font-medium text-[#0F172A]">Tai Shobajo</p>
+              <p className="text-xs text-[#64748B]">Owner</p>
+            </div>
+          </div>
+          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-[#64748B]">Full access</span>
+        </div>
+        <button className="mt-2 flex items-center gap-1.5 text-xs font-medium text-[#64748B] hover:text-[#0F172A] transition-colors">
+          <Plus className="w-3.5 h-3.5" /> Invite collaborator
+        </button>
       </div>
     </div>
   )
@@ -947,36 +1324,11 @@ export default function SettingsPage() {
               {activeSection === "memory" && (
                 <MemorySection />
               )}
-              {activeSection === "production" && (
-                <PlaceholderSection
-                  title="Production"
-                  description="Frame count, render order, and shot approval thresholds."
-                />
-              )}
-              {activeSection === "release" && (
-                <PlaceholderSection
-                  title="Release"
-                  description="How and when approved packages are surfaced for publishing."
-                />
-              )}
-              {activeSection === "brand" && (
-                <PlaceholderSection
-                  title="Brand"
-                  description="Visual tokens, color palettes, and typographic standards."
-                />
-              )}
-              {activeSection === "engine" && (
-                <PlaceholderSection
-                  title="Engine"
-                  description="Model routing, scoring weights, and prompt architecture. System-owned."
-                />
-              )}
-              {activeSection === "data" && (
-                <PlaceholderSection
-                  title="Data & security"
-                  description="Export, deletion, and workspace access controls."
-                />
-              )}
+              {activeSection === "production" && <ProductionSection />}
+              {activeSection === "release" && <ReleaseSection />}
+              {activeSection === "brand" && <BrandSection />}
+              {activeSection === "engine" && <EngineSection />}
+              {activeSection === "data" && <DataSection />}
             </div>
 
             {/* Right panel */}

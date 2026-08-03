@@ -17,6 +17,8 @@ import {
   ShieldCheck,
   TrendingUp,
   Settings,
+  Search,
+  Bell,
   X,
 } from "lucide-react";
 
@@ -212,18 +214,25 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
             </div>
           </details>
 
-          <Link
-            href="/settings"
-            onClick={onClose}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-sm text-xs transition-colors"
-            style={{
-              backgroundColor: pathname === "/settings" ? "#1A2740" : "transparent",
-              color: pathname === "/settings" ? "#FFFFFF" : "rgba(212,208,200,0.5)",
-            }}
-          >
-            <Settings className="w-[14px] h-[14px] flex-shrink-0" />
-            <span className="font-medium">Settings</span>
-          </Link>
+          {[
+            { href: "/search", icon: Search, label: "Search" },
+            { href: "/notifications", icon: Bell, label: "Notifications" },
+            { href: "/settings", icon: Settings, label: "Settings" },
+          ].map(({ href, icon: Icon, label }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={onClose}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-sm text-xs transition-colors"
+              style={{
+                backgroundColor: pathname === href ? "#1A2740" : "transparent",
+                color: pathname === href ? "#FFFFFF" : "rgba(212,208,200,0.5)",
+              }}
+            >
+              <Icon className="w-[14px] h-[14px] flex-shrink-0" />
+              <span className="font-medium">{label}</span>
+            </Link>
+          ))}
 
           {/* User row */}
           <div className="flex items-center gap-2 px-3 py-2 mt-1">
