@@ -44,6 +44,18 @@ import {
   History,
   ChevronDown,
   Waves,
+  Palette,
+  User,
+  Shield,
+  Camera,
+  Sun,
+  Layers,
+  Aperture,
+  Replace,
+  AlertTriangle,
+  List,
+  LayoutGrid,
+  Filter,
 } from "lucide-react"
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -161,13 +173,7 @@ export default function ProductionWorkspacePage() {
             />
           )}
           {activeTab === "script" && <ScriptTab production={production} />}
-          {activeTab === "frames" && (
-            <PlaceholderTab
-              title="Frames"
-              subtitle="Keyframe planning and reference locking."
-              icon={Clapperboard}
-            />
-          )}
+          {activeTab === "frames" && <FramesTab production={production} />}
           {activeTab === "scenes" && (
             <PlaceholderTab
               title="Scenes"
@@ -1498,6 +1504,614 @@ function formatTimecode(seconds: number): string {
   const m = Math.floor(seconds / 60)
   const s = seconds % 60
   return `${m}:${String(s).padStart(2, "0")}`
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FRAMES TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const KEYFRAME_TITLES = [
+  "The Weight",
+  "The Reveal",
+  "Beneath the Surface",
+  "The Turn",
+  "The Release",
+  "The Dawn",
+]
+
+const KEYFRAME_DESCRIPTIONS = [
+  "A city sits on his back.",
+  "The entire office is tilted.",
+  "He walks beneath the building.",
+  "He turns the valve under a heavy beam.",
+  "He releases what was never his.",
+  "The city stands. He steps back.",
+]
+
+const KEYFRAME_META = [
+  { cam: "Wide Shot", lens: "24mm", light: "Dawn Backlight" },
+  { cam: "Dutch Tilt", lens: "28mm", light: "Soft Window" },
+  { cam: "Low Angle", lens: "21mm", light: "Low Key" },
+  { cam: "Close-up", lens: "50mm", light: "Motivated" },
+  { cam: "Medium Shot", lens: "35mm", light: "Dawn Side" },
+  { cam: "Wide Shot", lens: "24mm", light: "Golden Dawn" },
+]
+
+const FRAME_NOTES = [
+  "Avoid literal illustration of a man holding a city.",
+  "Hold on the burden before the reveal.",
+  "Preserve dawn warmth in opening and ending.",
+  "Keep the city scale believable.",
+]
+
+const VISUAL_TREATMENT = {
+  palette: [
+    { color: "#8B6914", name: "Warm amber" },
+    { color: "#1A2332", name: "Navy shadow" },
+    { color: "#9B9B9B", name: "Stone gray" },
+  ],
+  lighting: "Dawn glow, soft contrast",
+  camera: "Slow, composed, cinematic",
+  texture: "Real, subtle grain",
+  ratios: ["16:9", "9:16", "1:1"],
+}
+
+const CONTINUITY_CHECKS = [
+  { label: "Character face consistent", status: "pass" as const },
+  { label: "Wardrobe consistent", status: "pass" as const },
+  { label: "Architecture aligned", status: "pass" as const },
+  { label: "Lighting arc works", status: "pass" as const },
+  { label: "Symbol usage aligned", status: "pass" as const },
+  { label: "Scene 04 scale mismatch", status: "warning" as const },
+]
+
+function FramesTab({ production }: { production: Production }) {
+  const [selectedFrame, setSelectedFrame] = useState(2) // Scene 03 by default
+  const [viewMode, setViewMode] = useState<"board" | "list">("board")
+  const [frameStatuses, setFrameStatuses] = useState<("approved" | "review" | "draft")[]>([
+    "approved", "approved", "review", "draft", "draft", "draft",
+  ])
+
+  function cycleStatus(idx: number) {
+    setFrameStatuses((prev) => {
+      const next = [...prev]
+      const current = next[idx]
+      next[idx] = current === "draft" ? "review" : current === "review" ? "approved" : "draft"
+      return next
+    })
+  }
+
+  function approveAllFrames() {
+    setFrameStatuses((prev) => prev.map(() => "approved"))
+    updateProduction(production.id, (p) => ({
+      ...p,
+      gates: { ...p.gates, keyframes: { key: "keyframes", status: "approved" as const } },
+    }))
+  }
+
+  const shots = production.film.shots.slice(0, 6)
+  const approvedCount = frameStatuses.filter((s) => s === "approved").length
+  const reviewCount = frameStatuses.filter((s) => s === "review").length
+
+  return (
+    <div className="pt-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
+        {/* ═══ MAIN COLUMN ═══ */}
+        <div className="space-y-5">
+          {/* Header */}
+          <div>
+            <h1 className="font-serif text-xl" style={{ color: COLORS.textDark }}>
+              <span style={{ color: COLORS.textMuted }}>4.</span> Design the visual blueprint
+            </h1>
+            <p className="text-[11px] mt-0.5" style={{ color: COLORS.textMid }}>
+              Approve the key frames, visual treatment, and character continuity before we generate scenes.
+            </p>
+          </div>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <SummaryCard icon={Palette} title="Visual treatment" desc="Cinematic realism · warm dawn light · calm camera language" action="View" />
+            <SummaryCard icon={User} title="Character casting" desc="Founder locked · wardrobe approved" action="Edit" />
+            <SummaryCard icon={Shield} title="Continuity" desc={`${approvedCount} checks passing${reviewCount > 0 ? ` · ${reviewCount} needs review` : ""}`} action="View" />
+          </div>
+
+          {/* Keyframe Board */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="font-serif text-base" style={{ color: COLORS.textDark }}>Keyframe board</h2>
+                <p className="text-[10px]" style={{ color: COLORS.textMuted }}>Scene by scene visual approvals</p>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setViewMode("board")}
+                  className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded transition-colors"
+                  style={{
+                    backgroundColor: viewMode === "board" ? COLORS.navy : "transparent",
+                    color: viewMode === "board" ? "#FFFFFF" : COLORS.textMuted,
+                  }}
+                >
+                  <LayoutGrid className="w-3 h-3" />
+                  Board
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded transition-colors"
+                  style={{
+                    backgroundColor: viewMode === "list" ? COLORS.navy : "transparent",
+                    color: viewMode === "list" ? "#FFFFFF" : COLORS.textMuted,
+                  }}
+                >
+                  <List className="w-3 h-3" />
+                  List
+                </button>
+                <button className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMuted }}>
+                  <Filter className="w-3 h-3" />
+                  Filter
+                </button>
+              </div>
+            </div>
+
+            {/* Board View */}
+            {viewMode === "board" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {shots.map((shot, idx) => (
+                  <KeyframeCard
+                    key={shot.no}
+                    idx={idx}
+                    title={KEYFRAME_TITLES[idx] || `Scene ${idx + 1}`}
+                    description={KEYFRAME_DESCRIPTIONS[idx] || ""}
+                    meta={KEYFRAME_META[idx] || KEYFRAME_META[0]}
+                    status={frameStatuses[idx]}
+                    isSelected={selectedFrame === idx}
+                    onSelect={() => setSelectedFrame(idx)}
+                    onCycleStatus={() => cycleStatus(idx)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* List View */}
+            {viewMode === "list" && (
+              <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+                {shots.map((shot, idx) => {
+                  const status = frameStatuses[idx]
+                  const meta = KEYFRAME_META[idx] || KEYFRAME_META[0]
+                  return (
+                    <div
+                      key={shot.no}
+                      onClick={() => setSelectedFrame(idx)}
+                      className="flex items-center gap-3 px-3 py-2.5 border-b last:border-0 cursor-pointer transition-colors hover:bg-black/[0.015]"
+                      style={{
+                        borderColor: COLORS.borderLight,
+                        backgroundColor: selectedFrame === idx ? "rgba(194,154,91,0.04)" : "transparent",
+                      }}
+                    >
+                      <span className="text-[9px] font-bold w-6" style={{ color: COLORS.textMuted }}>{String(idx + 1).padStart(2, "0")}</span>
+                      <div className="w-10 h-10 rounded-md flex-shrink-0" style={{ background: `linear-gradient(135deg, ${COLORS.navy}10, ${COLORS.gold}10)` }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-semibold" style={{ color: COLORS.textDark }}>{KEYFRAME_TITLES[idx] || `Scene ${idx + 1}`}</p>
+                        <p className="text-[9px]" style={{ color: COLORS.textMuted }}>{meta.cam} · {meta.lens} · {meta.light}</p>
+                      </div>
+                      <StatusBadge status={status} />
+                      <MoreHorizontal className="w-3 h-3" style={{ color: COLORS.textMuted }} />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Character Continuity + Frame Notes */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Character Continuity */}
+            <div className="rounded-xl border p-4" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.textMid }}>Character continuity</p>
+                <MoreHorizontal className="w-3 h-3" style={{ color: COLORS.textMuted }} />
+              </div>
+              <div className="flex items-start gap-3 mb-3">
+                <div
+                  className="w-14 h-14 rounded-lg flex-shrink-0 flex items-center justify-center"
+                  style={{ background: `linear-gradient(135deg, ${COLORS.navy}, ${COLORS.gold})` }}
+                >
+                  <User className="w-7 h-7 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="text-[12px] font-semibold" style={{ color: COLORS.textDark }}>Founder (Main Character)</p>
+                    <StatusBadge status="approved" />
+                  </div>
+                  <div className="space-y-0.5 mt-1.5">
+                    <p className="text-[10px]" style={{ color: COLORS.textMid }}><strong style={{ color: COLORS.textDark }}>Wardrobe:</strong> Dark coat · layers · practical</p>
+                    <p className="text-[10px]" style={{ color: COLORS.textMid }}><strong style={{ color: COLORS.textDark }}>Posture:</strong> Carries weight · grounded · restrained</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <button className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+                  <Eye className="w-3 h-3" />
+                  View character
+                </button>
+                <button className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+                  <Check className="w-3 h-3" />
+                  Approve variation
+                </button>
+              </div>
+              <div className="pt-2 border-t" style={{ borderColor: COLORS.borderLight }}>
+                <p className="text-[9px] font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.textMuted }}>Continuity across scenes</p>
+                <div className="flex items-center gap-1.5">
+                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="flex items-center gap-0.5">
+                      <div className="w-6 h-6 rounded-md flex items-center justify-center text-[8px] font-bold" style={{ backgroundColor: "rgba(34,160,107,0.08)", color: COLORS.green }}>
+                        {String(i + 1).padStart(2, "0")}
+                      </div>
+                      {i < 5 && <Check className="w-2.5 h-2.5" style={{ color: COLORS.green }} />}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Frame Notes */}
+            <div className="rounded-xl border p-4" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+              <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: COLORS.textMid }}>Frame notes</p>
+              <div className="space-y-2 mb-3">
+                {FRAME_NOTES.map((note) => (
+                  <div key={note} className="flex items-start gap-2">
+                    <div className="w-1 h-1 rounded-full flex-shrink-0 mt-1.5" style={{ backgroundColor: COLORS.gold }} />
+                    <p className="text-[11px] leading-snug" style={{ color: COLORS.textDark }}>{note}</p>
+                  </div>
+                ))}
+              </div>
+              <button className="flex items-center gap-1 text-[10px] font-medium transition-colors hover:underline" style={{ color: COLORS.blue }}>
+                <PenLine className="w-3 h-3" />
+                Add note
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══ RIGHT SIDEBAR ═══ */}
+        <div className="space-y-4">
+          {/* Selected Frame Detail */}
+          <SelectedFrameDetail idx={selectedFrame} />
+
+          {/* Visual Treatment */}
+          <VisualTreatmentCard />
+
+          {/* Continuity Check */}
+          <ContinuityCheckCard />
+
+          {/* Ready for Scenes */}
+          <div
+            className="rounded-xl border p-4"
+            style={{
+              backgroundColor: "rgba(194,154,91,0.05)",
+              borderColor: "rgba(194,154,91,0.2)",
+            }}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles className="w-4 h-4" style={{ color: COLORS.gold }} />
+              <p className="font-serif text-sm" style={{ color: COLORS.textDark }}>Ready for scene generation</p>
+            </div>
+            <p className="text-[10px] mb-3" style={{ color: COLORS.textMid }}>
+              Once the frames are approved, the Studio can generate motion.
+            </p>
+            <div className="space-y-2">
+              <button
+                onClick={approveAllFrames}
+                className="flex items-center justify-center gap-1.5 w-full text-[11px] font-semibold px-3 py-2 rounded-lg transition-opacity hover:opacity-90"
+                style={{ backgroundColor: COLORS.gold, color: "#FFFFFF" }}
+              >
+                Approve frames &amp; generate scenes
+                <ArrowRight className="w-3 h-3" />
+              </button>
+              <button className="flex items-center justify-center gap-1.5 w-full text-[11px] font-medium px-3 py-2 rounded-lg border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+                <RefreshCw className="w-3 h-3" />
+                Request revisions
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Keyframe Card ──────────────────────────────────────────────────────────
+
+function KeyframeCard({
+  idx,
+  title,
+  description,
+  meta,
+  status,
+  isSelected,
+  onSelect,
+  onCycleStatus,
+}: {
+  idx: number
+  title: string
+  description: string
+  meta: { cam: string; lens: string; light: string }
+  status: "approved" | "review" | "draft"
+  isSelected: boolean
+  onSelect: () => void
+  onCycleStatus: () => void
+}) {
+  return (
+    <div
+      onClick={onSelect}
+      className="rounded-xl border overflow-hidden cursor-pointer transition-all"
+      style={{
+        backgroundColor: COLORS.white,
+        borderColor: isSelected ? COLORS.gold : COLORS.borderLight,
+        borderWidth: isSelected ? 1.5 : 1,
+        boxShadow: isSelected ? "0 2px 12px rgba(194,154,91,0.12)" : "none",
+      }}
+    >
+      {/* Thumbnail */}
+      <div
+        className="relative h-28 flex items-center justify-center"
+        style={{ background: `linear-gradient(135deg, ${COLORS.navy}12, ${COLORS.gold}10)` }}
+      >
+        <span className="text-[28px] font-serif" style={{ color: `${COLORS.navy}20` }}>
+          {String(idx + 1).padStart(2, "0")}
+        </span>
+        <div className="absolute top-2 left-2">
+          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
+            {String(idx + 1).padStart(2, "0")}
+          </span>
+        </div>
+        <div className="absolute top-2 right-2">
+          <MoreHorizontal className="w-3 h-3 text-white/60" />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-semibold" style={{ color: COLORS.textDark }}>{title}</p>
+          <StatusBadge status={status} />
+        </div>
+        <p className="text-[10px] leading-snug" style={{ color: COLORS.textMid }}>{description}</p>
+
+        {/* Metadata */}
+        <div className="flex items-center gap-2 text-[8px]" style={{ color: COLORS.textMuted }}>
+          <span className="flex items-center gap-0.5">
+            <Camera className="w-2.5 h-2.5" />
+            {meta.cam}
+          </span>
+          <span>·</span>
+          <span className="flex items-center gap-0.5">
+            <Aperture className="w-2.5 h-2.5" />
+            {meta.lens}
+          </span>
+          <span>·</span>
+          <span className="flex items-center gap-0.5">
+            <Sun className="w-2.5 h-2.5" />
+            {meta.light}
+          </span>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 pt-1">
+          <button className="flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors hover:bg-black/5" style={{ color: COLORS.textMuted }}>
+            <GitCompare className="w-2.5 h-2.5" />
+            Compare
+          </button>
+          <button className="flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors hover:bg-black/5" style={{ color: COLORS.textMuted }}>
+            <RefreshCw className="w-2.5 h-2.5" />
+            Regenerate
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onCycleStatus() }}
+            className="ml-auto flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded transition-colors"
+            style={{
+              backgroundColor: status === "approved" ? "rgba(34,160,107,0.08)" : status === "review" ? "rgba(194,154,91,0.08)" : "rgba(138,133,120,0.06)",
+              color: status === "approved" ? COLORS.green : status === "review" ? COLORS.gold : COLORS.textMuted,
+            }}
+          >
+            {status === "approved" ? <Check className="w-2.5 h-2.5" /> : null}
+            {status === "approved" ? "Approved" : status === "review" ? "Review" : "Approve"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Status Badge ────────────────────────────────────────────────────────────
+
+function StatusBadge({ status }: { status: "approved" | "review" | "draft" }) {
+  const config = {
+    approved: { label: "Approved", bg: "rgba(34,160,107,0.08)", color: COLORS.green },
+    review: { label: "Needs review", bg: "rgba(194,154,91,0.1)", color: COLORS.gold },
+    draft: { label: "Draft", bg: "rgba(138,133,120,0.06)", color: COLORS.textMuted },
+  }
+  const c = config[status]
+  return (
+    <span
+      className="text-[8px] font-bold tracking-[0.06em] uppercase px-1.5 py-0.5 rounded-full whitespace-nowrap"
+      style={{ backgroundColor: c.bg, color: c.color }}
+    >
+      {c.label}
+    </span>
+  )
+}
+
+// ─── Summary Card ────────────────────────────────────────────────────────────
+
+function SummaryCard({ icon: Icon, title, desc, action }: { icon: React.ElementType; title: string; desc: string; action: string }) {
+  return (
+    <div className="rounded-xl border p-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+      <div className="flex items-start gap-2 mb-1.5">
+        <div className="rounded-md flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, backgroundColor: `${COLORS.gold}10` }}>
+          <Icon className="w-3.5 h-3.5" style={{ color: COLORS.gold }} />
+        </div>
+        <p className="text-[10px] font-bold tracking-[0.1em] uppercase" style={{ color: COLORS.textDark }}>{title}</p>
+      </div>
+      <p className="text-[10px] leading-snug mb-2" style={{ color: COLORS.textMid }}>{desc}</p>
+      <button className="text-[10px] font-medium transition-colors hover:underline" style={{ color: COLORS.blue }}>{action}</button>
+    </div>
+  )
+}
+
+// ─── Selected Frame Detail ──────────────────────────────────────────────────
+
+function SelectedFrameDetail({ idx }: { idx: number }) {
+  const title = KEYFRAME_TITLES[idx] || `Scene ${idx + 1}`
+  const meta = KEYFRAME_META[idx] || KEYFRAME_META[0]
+  const desc = KEYFRAME_DESCRIPTIONS[idx] || ""
+
+  const attributes = [
+    { label: "Camera", value: `${meta.cam} tracking in` },
+    { label: "Lighting", value: `${meta.light} · shafts of light` },
+    { label: "Composition", value: "Leading lines · center depth" },
+    { label: "Symbol usage", value: idx === 2 ? "Underground = truth" : idx === 3 ? "Valve = leverage" : idx === 5 ? "Dawn = new era" : "Metaphor locked" },
+    { label: "World alignment", value: "Aligned" },
+  ]
+
+  return (
+    <div className="rounded-xl border p-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.textMid }}>Selected frame detail</p>
+        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${COLORS.gold}10`, color: COLORS.gold }}>
+          Scene {String(idx + 1).padStart(2, "0")}
+        </span>
+      </div>
+
+      {/* Thumbnail */}
+      <div
+        className="h-24 rounded-lg flex items-center justify-center mb-2"
+        style={{ background: `linear-gradient(135deg, ${COLORS.navy}15, ${COLORS.gold}10)` }}
+      >
+        <span className="text-[32px] font-serif" style={{ color: `${COLORS.navy}20` }}>
+          {String(idx + 1).padStart(2, "0")}
+        </span>
+      </div>
+
+      <p className="text-[12px] font-semibold mb-1" style={{ color: COLORS.textDark }}>{title}</p>
+      <p className="text-[10px] leading-snug mb-2" style={{ color: COLORS.textMid }}>{desc}</p>
+
+      {/* Attributes */}
+      <div className="space-y-1 mb-3">
+        {attributes.map((attr) => (
+          <div key={attr.label} className="flex items-start gap-2">
+            <span className="text-[9px] font-semibold uppercase tracking-wide w-24 flex-shrink-0" style={{ color: COLORS.textMuted }}>{attr.label}</span>
+            <span className="text-[10px] leading-snug" style={{ color: COLORS.textDark }}>{attr.value}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-1">
+        <button className="flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+          <GitCompare className="w-2.5 h-2.5" />
+          Compare
+        </button>
+        <button className="flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-1 rounded border transition-colors hover:bg-black/5" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+          <Replace className="w-2.5 h-2.5" />
+          Replace
+        </button>
+        <button className="flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-1 rounded border transition-colors hover:bg-black/5 ml-auto" style={{ borderColor: COLORS.border, color: COLORS.blue }}>
+          Open script
+          <ArrowRight className="w-2.5 h-2.5" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Visual Treatment Card ──────────────────────────────────────────────────
+
+function VisualTreatmentCard() {
+  return (
+    <div className="rounded-xl border p-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: COLORS.textMid }}>Visual treatment</p>
+        <button className="text-[9px] font-medium transition-colors hover:underline" style={{ color: COLORS.blue }}>
+          <PenLine className="w-2.5 h-2.5 inline" /> Edit
+        </button>
+      </div>
+
+      {/* Palette */}
+      <div className="mb-3">
+        <p className="text-[9px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: COLORS.textMuted }}>Palette</p>
+        <div className="flex items-center gap-2">
+          {VISUAL_TREATMENT.palette.map((sw) => (
+            <div key={sw.name} className="flex items-center gap-1">
+              <div className="w-5 h-5 rounded" style={{ backgroundColor: sw.color }} />
+            </div>
+          ))}
+        </div>
+        <p className="text-[9px] mt-1" style={{ color: COLORS.textMid }}>
+          {VISUAL_TREATMENT.palette.map((p) => p.name).join(", ")}
+        </p>
+      </div>
+
+      {/* Rows */}
+      <div className="space-y-1.5">
+        <TreatmentRow icon={Sun} label="Lighting" value={VISUAL_TREATMENT.lighting} />
+        <TreatmentRow icon={Camera} label="Camera" value={VISUAL_TREATMENT.camera} />
+        <TreatmentRow icon={Layers} label="Texture" value={VISUAL_TREATMENT.texture} />
+      </div>
+
+      {/* Aspect ratios */}
+      <div className="flex items-center gap-1.5 mt-3 pt-2 border-t" style={{ borderColor: COLORS.borderLight }}>
+        <span className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: COLORS.textMuted }}>Ratios:</span>
+        {VISUAL_TREATMENT.ratios.map((r) => (
+          <span key={r} className="text-[9px] font-medium px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(47,98,216,0.06)", color: COLORS.blue }}>
+            {r}
+          </span>
+        ))}
+      </div>
+
+      <button className="flex items-center justify-center gap-1 w-full text-[10px] font-medium px-2 py-1.5 rounded-lg border transition-colors hover:bg-black/5 mt-3" style={{ borderColor: COLORS.border, color: COLORS.textMid }}>
+        <Sparkles className="w-3 h-3" style={{ color: COLORS.gold }} />
+        Apply World preset
+      </button>
+    </div>
+  )
+}
+
+function TreatmentRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Icon className="w-3 h-3 flex-shrink-0" style={{ color: COLORS.textMuted }} />
+      <span className="text-[9px] font-semibold uppercase tracking-wide w-16 flex-shrink-0" style={{ color: COLORS.textMuted }}>{label}</span>
+      <span className="text-[10px]" style={{ color: COLORS.textDark }}>{value}</span>
+    </div>
+  )
+}
+
+// ─── Continuity Check Card ──────────────────────────────────────────────────
+
+function ContinuityCheckCard() {
+  return (
+    <div className="rounded-xl border p-3" style={{ backgroundColor: COLORS.white, borderColor: COLORS.borderLight }}>
+      <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-2" style={{ color: COLORS.textMid }}>Continuity check</p>
+      <div className="space-y-1.5">
+        {CONTINUITY_CHECKS.map((check) => (
+          <div key={check.label} className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {check.status === "pass" ? (
+                <Check className="w-3 h-3" style={{ color: COLORS.green }} />
+              ) : (
+                <AlertTriangle className="w-3 h-3" style={{ color: COLORS.gold }} />
+              )}
+              <span className="text-[10px]" style={{ color: check.status === "pass" ? COLORS.textDark : COLORS.gold }}>
+                {check.label}
+              </span>
+            </div>
+            {check.status === "warning" && (
+              <button className="text-[9px] font-medium transition-colors hover:underline" style={{ color: COLORS.blue }}>Review</button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
