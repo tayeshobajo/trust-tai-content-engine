@@ -454,8 +454,8 @@ function ConceptTab({ production, onTabChange }: { production: Production; onTab
                   concept: { key: "concept", status: "approved" as const },
                 },
               }))
-              onTabChange("script")
             }
+            onTabChange("script")
           }}
         />
       </div>
@@ -677,24 +677,27 @@ function RecommendationBanner({
           )}
         </p>
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={onApprove}
-            disabled={!selectedKey || conceptApproved}
-            className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ backgroundColor: COLORS.gold, color: "#FFFFFF" }}
-          >
-            {conceptApproved ? (
-              <>
-                <Check className="w-3 h-3" />
-                Concept approved
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-3 h-3" />
-                Approve concept
-              </>
-            )}
-          </button>
+          {conceptApproved ? (
+            <button
+              onClick={onApprove}
+              className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded transition-opacity hover:opacity-90"
+              style={{ backgroundColor: COLORS.green, color: "#FFFFFF" }}
+            >
+              <Check className="w-3 h-3" />
+              Continue to Script
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          ) : (
+            <button
+              onClick={onApprove}
+              disabled={!selectedKey}
+              className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ backgroundColor: COLORS.gold, color: "#FFFFFF" }}
+            >
+              <Sparkles className="w-3 h-3" />
+              Approve concept
+            </button>
+          )}
           <button
             className="text-[11px] font-medium px-3 py-1.5 rounded border transition-colors hover:bg-black/5"
             style={{ borderColor: COLORS.border, color: COLORS.textMid }}
