@@ -79,60 +79,13 @@ const quickActions = [
   },
 ]
 
-const pillars = [
-  "The Roadmap",
-  "Founder Bottlenecks",
-  "Systems That Scale",
-  "Spirit First",
-  "Client Transformation",
-  "+3 more",
-]
+const pillars: string[] = []
 
-const recommendations = [
-  {
-    icon: BarChart2,
-    iconBg: "bg-blue-50",
-    iconColor: "text-blue-600",
-    title: "Post frequency is down 20% this week",
-    desc: "You've published 3 posts vs your usual 5. Catch up with 2 today.",
-  },
-  {
-    icon: Sparkles,
-    iconBg: "bg-purple-50",
-    iconColor: "text-purple-600",
-    title: "Roadmap pillar is your top performer",
-    desc: "3x more impressions than other pillars. Post 2 more this week.",
-  },
-  {
-    icon: Search,
-    iconBg: "bg-amber-50",
-    iconColor: "text-amber-600",
-    title: "No Instagram Reels in 2 weeks",
-    desc: "Short video drives 4x organic reach on Instagram. Try one this week.",
-  },
-  {
-    icon: Eye,
-    iconBg: "bg-green-50",
-    iconColor: "text-green-600",
-    title: "Best time to post: Tue/Thu 9am",
-    desc: "Your audience engagement peaks Tuesday and Thursday mornings.",
-  },
-]
+const recommendations: { icon: React.ElementType; iconBg: string; iconColor: string; title: string; desc: string }[] = []
 
-const healthMetrics = [
-  { label: "Consistency", value: 82, color: "bg-blue-500" },
-  { label: "Category Balance", value: 74, color: "bg-purple-500" },
-  { label: "Offer Alignment", value: 76, color: "bg-green-500" },
-  { label: "Engagement Potential", value: 79, color: "bg-amber-500" },
-  { label: "Platform Balance", value: 78, color: "bg-pink-500" },
-]
+const healthMetrics: { label: string; value: number; color: string }[] = []
 
-const recentActivity = [
-  { label: "Content plan created for next week", time: "2 min ago", color: "bg-blue-500" },
-  { label: "5 posts added to Approval Queue", time: "2 min ago", color: "bg-green-500" },
-  { label: "Voice score updated: 92/100", time: "1 hr ago", color: "bg-purple-500" },
-  { label: "Content gap identified: Instagram Reels", time: "3 hrs ago", color: "bg-amber-500" },
-]
+const recentActivity: { label: string; time: string; color: string }[] = []
 
 const contextChips = ["My goals", "Current campaigns", "Top performing posts", "Content gaps"]
 

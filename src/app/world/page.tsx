@@ -67,12 +67,8 @@ const WORLD_SECTIONS: WorldSection[] = [
     accent: C.purple,
     tagline: "Non-negotiable principles",
     summary: "The rules the world cannot break. Spirit First, value before entertainment, clarity over cleverness, metaphor over explanation, dignity in every frame.",
-    stats: [
-      { label: "Principles", value: "6" },
-      { label: "Last reviewed", value: "12 days ago" },
-      { label: "Violations caught", value: "3" },
-    ],
-    recentItems: ["Spirit First — dignity over drama", "No spectacle for its own sake", "The film must serve the post"],
+    stats: [],
+    recentItems: [],
     href: "/world/constitution",
     locked: true,
   },
@@ -84,12 +80,8 @@ const WORLD_SECTIONS: WorldSection[] = [
     accent: C.blue,
     tagline: "How Tai sounds on the page and screen",
     summary: "Approved traits, sentence patterns, language Tai uses, phrases to avoid, emotional range, and learned tendencies from production history.",
-    stats: [
-      { label: "Approved traits", value: "11" },
-      { label: "Sentence patterns", value: "7" },
-      { label: "Phrases to avoid", value: "14" },
-    ],
-    recentItems: ["No softening language (96% confidence)", "Systems-thinking register", "Opening with a 'moment' construction — pending approval"],
+    stats: [],
+    recentItems: [],
     href: "/world/voice",
     locked: false,
   },
@@ -101,12 +93,8 @@ const WORLD_SECTIONS: WorldSection[] = [
     accent: C.orange,
     tagline: "Roster of recurring figures",
     summary: "Master appearance, alternates, wardrobe, production history, and continuity confidence. Production-only variations don't overwrite the master.",
-    stats: [
-      { label: "Active characters", value: "4" },
-      { label: "Appearances", value: "11" },
-      { label: "Avg continuity", value: "87%" },
-    ],
-    recentItems: ["The Architect — 4 productions", "The Mapmaker — 1 production", "The Child — 2 productions"],
+    stats: [],
+    recentItems: [],
     href: "/characters",
     locked: false,
   },
@@ -118,12 +106,8 @@ const WORLD_SECTIONS: WorldSection[] = [
     accent: C.green,
     tagline: "Environments and their visual identity",
     summary: "Architecture, geography, lighting conditions, weather states, and time-of-day rules for every recurring location in the world.",
-    stats: [
-      { label: "Named places", value: "6" },
-      { label: "In production", value: "2" },
-      { label: "Time-of-day states", value: "18" },
-    ],
-    recentItems: ["The City at First Light", "The Founder's Study", "The Open Road"],
+    stats: [],
+    recentItems: [],
     href: "/places",
     locked: false,
   },
@@ -135,12 +119,8 @@ const WORLD_SECTIONS: WorldSection[] = [
     accent: C.gold,
     tagline: "Recurring objects with governed meaning",
     summary: "Meaning, previous uses, approved interpretations, overuse risk, and prohibited clichés. Every symbol has a production history.",
-    stats: [
-      { label: "Active symbols", value: "9" },
-      { label: "Overuse risk", value: "2" },
-      { label: "Prohibited clichés", value: "8" },
-    ],
-    recentItems: ["The case / container — used 3×", "The laptop — overuse caution", "The map — 1 use, strong"],
+    stats: [],
+    recentItems: [],
     href: "/world/symbols",
     locked: false,
   },
@@ -152,12 +132,8 @@ const WORLD_SECTIONS: WorldSection[] = [
     accent: "#0891B2",
     tagline: "How the world looks",
     summary: "Palette, lighting, lenses, composition, movement pace, realism level, texture, grain, transitions, typography, and hard prohibitions.",
-    stats: [
-      { label: "Color rules", value: "12" },
-      { label: "Lens presets", value: "5" },
-      { label: "Prohibitions", value: "7" },
-    ],
-    recentItems: ["Warm cream palette (#F4F1EA base)", "Portrait-first — 9:16 default", "No blue-teal color grade"],
+    stats: [],
+    recentItems: [],
     href: "/world/visual",
     locked: false,
   },
@@ -169,12 +145,8 @@ const WORLD_SECTIONS: WorldSection[] = [
     accent: "#DC2626",
     tagline: "Recurring ideas as ongoing narratives",
     summary: "Published posts, active productions, unresolved questions, next chapters, and recurring characters and symbols tied to each thread.",
-    stats: [
-      { label: "Active threads", value: "5" },
-      { label: "Published posts", value: "7" },
-      { label: "Open questions", value: "3" },
-    ],
-    recentItems: ["The Founder Must Become Unnecessary", "Hidden Systems / Visible Symptoms", "The TrustTai Client Journey"],
+    stats: [],
+    recentItems: [],
     href: "/world/threads",
     locked: false,
   },
@@ -186,12 +158,8 @@ const WORLD_SECTIONS: WorldSection[] = [
     accent: "#7C3AED",
     tagline: "What the Studio has learned and verified",
     summary: "Locked truths, learned preferences, temporary context, production lessons, and audience patterns. Each with confidence score, approval status, and usage history.",
-    stats: [
-      { label: "Locked truths", value: "23" },
-      { label: "Pending approval", value: "3" },
-      { label: "Avg confidence", value: "88%" },
-    ],
-    recentItems: ["Laptop metaphor resonance — pending", "Opening with 'moment' — pending", "Architectural interiors / indoor lighting — pending"],
+    stats: [],
+    recentItems: [],
     href: "/memory",
     locked: false,
   },
@@ -201,12 +169,7 @@ const WORLD_SECTIONS: WorldSection[] = [
 // WORLD HEALTH METRICS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const WORLD_HEALTH = [
-  { label: "Constitution intact", status: "ok" as const },
-  { label: "3 memory approvals pending", status: "warn" as const },
-  { label: "2 symbols at overuse risk", status: "warn" as const },
-  { label: "Character continuity 87% avg", status: "ok" as const },
-]
+const WORLD_HEALTH: { label: string; status: "ok" | "warn" }[] = []
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE

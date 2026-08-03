@@ -117,6 +117,55 @@ export interface ConceptDirection {
   costEstimate: string
 }
 
+/** Camera angle relative to subject */
+export type CameraAngle =
+  | "eye-level"
+  | "low-angle"
+  | "high-angle"
+  | "dutch-tilt"
+  | "overhead"
+  | "ground-level"
+  | "subject-pov"
+
+/** Shot size / framing */
+export type ShotSize =
+  | "extreme-wide"
+  | "wide"
+  | "medium-wide"
+  | "medium"
+  | "medium-close-up"
+  | "close-up"
+  | "extreme-close-up"
+
+/** Lens intention — governs depth, perspective, and subject isolation */
+export type LensIntention =
+  | "24mm-ultra-wide"
+  | "35mm-wide"
+  | "50mm-natural"
+  | "85mm-portrait"
+  | "100mm-tele"
+  | "macro"
+
+/** Per-shot generation metadata — tracks render provenance and cost */
+export interface FrameGenerationMeta {
+  /** Model used for this generation */
+  model: string
+  /** Seed for reproducibility */
+  seed?: number
+  /** Cost in credits or USD */
+  cost?: number
+  /** Generation version (incremented on re-render) */
+  version: number
+  /** Whether model capability was verified before generation */
+  capabilityChecked: boolean
+  /** Timestamp of generation */
+  generatedAt: string
+  /** Rejected frames retained for audit (URLs) */
+  rejectedFrameUrls?: string[]
+  /** Fallback model used if primary failed */
+  fallbackModel?: string
+}
+
 export interface Shot {
   no: number
   description: string
@@ -134,6 +183,29 @@ export interface Shot {
   /** Coherence check result for this shot's frame. */
   coherenceStatus?: "unchecked" | "pass" | "fail" | "warning"
   coherenceNote?: string
+  // ── Keyframe Generation Fields (QA Section 10) ────────────────────────────
+  /** Camera angle relative to subject */
+  cameraAngle?: CameraAngle
+  /** Shot size / framing */
+  shotSize?: ShotSize
+  /** Lens intention governing perspective and depth */
+  lensIntention?: LensIntention
+  /** Composition approach for this frame */
+  composition?: string
+  /** Specific lighting setup notes for this shot */
+  lightingNotes?: string
+  /** Atmosphere and environmental mood for this shot */
+  atmosphereNotes?: string
+  /** Emotional expression the character's face and body must convey */
+  emotionalExpression?: string
+  /** Things the generation model must NOT include */
+  negativeConstraints?: string[]
+  /** Generation provenance and cost tracking */
+  generationMeta?: FrameGenerationMeta
+  /** Linked script scene ID */
+  scriptSceneId?: string
+  /** Linked post reference for argument grounding */
+  postRef?: string
 }
 
 export interface KeyframePlan {

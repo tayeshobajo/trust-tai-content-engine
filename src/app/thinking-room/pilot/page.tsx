@@ -22,35 +22,12 @@ import { Film, ArrowRight, Sparkles } from "lucide-react"
 
 // ─── The brief ────────────────────────────────────────────────────────────────
 
-const PILOT_SOURCE_THOUGHT = `The Man Who Carried a City.
-
-In the Trust Tai world, every responsibility a person accepts becomes a real structure inside a small case they carry.
-
-The protagonist is a Black man in his late 30s. He moves through a beautiful city while holding an ordinary leather case.
-
-People approach him throughout the day:
-- A colleague hands him an unanswered question.
-- A client gives him a broken mechanism.
-- A worker gives him a decision.
-- His younger self gives him a folded dream.
-- At home, his child gives him a small drawing.
-
-Each item disappears into the case. The case never grows larger, but it becomes heavier. The man keeps smiling and saying, "I've got it."
-
-The reveal: late that night, he places the case on a table and opens it. Inside is an entire living city. Its roads lead to him. Its lights wait for him. Its machinery stops whenever his hands leave it. Thousands of people appear to be moving, but every route eventually arrives at the same small room where he stands. He has not merely been carrying work. He has been carrying a world that was built to require him.
-
-The decisive moment: he does not destroy the city or abandon it. He reaches inside and moves one central road away from himself. That single move allows several other roads to connect. Lights begin switching on without his touch. Bridges extend between buildings. People begin carrying knowledge to one another. The city does not need less care — it gains more capable hands.
-
-He closes the case. For the first time, it is light enough for his child to lift.
-
-Final image: the child opens the drawing they gave him earlier. It shows the man standing beside the city, not underneath it.
-
-The deeper truth: you may have started carrying everything out of love. But love must eventually build what other people can carry too.`
+const PILOT_SOURCE_THOUGHT = ""
 
 const PILOT_CONTEXT = {
-  trigger: "Recognizing that founders often normalize the weight of everything depending on them — and mistake that weight for leadership.",
-  audience: "Founders and operators who have built systems around themselves without realizing it. They are competent, loved, and load-bearing in ways that limit everyone beneath them.",
-  exclusion: "Do not frame this as a story about burnout. It is not about exhaustion — it is about the difference between carrying and building. Do not make the protagonist a victim. He is strong. The question is what strength should build toward.",
+  trigger: "",
+  audience: "",
+  exclusion: "",
 }
 
 // ─── Steps ────────────────────────────────────────────────────────────────────

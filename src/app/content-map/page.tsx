@@ -15,80 +15,7 @@ interface CategoryRow {
   weeks: [CoverageCell, CoverageCell, CoverageCell, CoverageCell]
 }
 
-const COVERAGE_MATRIX: CategoryRow[] = [
-  {
-    name: "Founder Insight",
-    weeks: [
-      { status: "Published" },
-      { status: "Scheduled" },
-      { status: "Planned" },
-      { status: "Missing" },
-    ],
-  },
-  {
-    name: "Client Education",
-    weeks: [
-      { status: "Published" },
-      { status: "Planned" },
-      { status: "Missing" },
-      { status: "Missing" },
-    ],
-  },
-  {
-    name: "Proof/Case Study",
-    weeks: [
-      { status: "Scheduled" },
-      { status: "Planned" },
-      { status: "Planned" },
-      { status: "Missing" },
-    ],
-  },
-  {
-    name: "Behind the Scenes",
-    weeks: [
-      { status: "Published" },
-      { status: "Scheduled" },
-      { status: "Planned" },
-      { status: "Planned" },
-    ],
-  },
-  {
-    name: "Offer/Sales",
-    weeks: [
-      { status: "Missing" },
-      { status: "Missing" },
-      { status: "Planned" },
-      { status: "Planned" },
-    ],
-  },
-  {
-    name: "Thought Leadership",
-    weeks: [
-      { status: "Published" },
-      { status: "Scheduled" },
-      { status: "Scheduled" },
-      { status: "Planned" },
-    ],
-  },
-  {
-    name: "Personal Story",
-    weeks: [
-      { status: "Published" },
-      { status: "Planned" },
-      { status: "Missing" },
-      { status: "Missing" },
-    ],
-  },
-  {
-    name: "FAQs",
-    weeks: [
-      { status: "Missing" },
-      { status: "Missing" },
-      { status: "Missing" },
-      { status: "Planned" },
-    ],
-  },
-]
+const COVERAGE_MATRIX: CategoryRow[] = []
 
 const STATUS_CELL: Record<CoverageStatus, string> = {
   Published: "bg-green-100 text-green-700",
@@ -109,28 +36,7 @@ interface ContentGap {
   description: string
 }
 
-const CONTENT_GAPS: ContentGap[] = [
-  {
-    category: "Offer/Sales",
-    description: "No Offer/Sales content planned for weeks 1–2. Revenue conversations need to start earlier.",
-  },
-  {
-    category: "Client Education",
-    description: "Client Education drops off after week 2 — risk of audience disengagement.",
-  },
-  {
-    category: "FAQs",
-    description: "FAQs are absent for 3 of 4 weeks. Unanswered questions kill conversion.",
-  },
-  {
-    category: "Personal Story",
-    description: "Personal Story missing weeks 3–4. Trust built through story needs continuity.",
-  },
-  {
-    category: "Founder Insight",
-    description: "Week 4 Founder Insight missing — finish strong to retain authority momentum.",
-  },
-]
+const CONTENT_GAPS: ContentGap[] = []
 
 interface PillarBar {
   name: string
@@ -138,13 +44,7 @@ interface PillarBar {
   color: string
 }
 
-const PILLARS: PillarBar[] = [
-  { name: "The Roadmap", pct: 32, color: "#2563EB" },
-  { name: "Founder Bottlenecks", pct: 23, color: "#7C3AED" },
-  { name: "Systems That Scale", pct: 18, color: "#16A34A" },
-  { name: "Spirit First", pct: 14, color: "#F59E0B" },
-  { name: "Client Transformation", pct: 11, color: "#EF4444" },
-]
+const PILLARS: PillarBar[] = []
 
 interface MetricCard {
   label: string
