@@ -83,7 +83,7 @@ export default function ProductionsPage() {
               <Search className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={() => router.push("/thinking-room/new")}
+              onClick={() => router.push("/studio/bring-a-post")}
               className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded hover:opacity-90"
               style={{ backgroundColor: "#1A2332", color: "#FFFFFF" }}
             >
@@ -155,7 +155,7 @@ export default function ProductionsPage() {
                 return (
                   <button
                     key={p.id}
-                    onClick={() => router.push(gate ? `/thinking-room/${p.id}` : `/library/${p.id}`)}
+                    onClick={() => router.push(gate ? `/studio/production/${p.id}` : `/library/${p.id}`)}
                     className="group flex flex-col text-left rounded-lg border overflow-hidden transition-all hover:shadow-md"
                     style={{ backgroundColor: "#FFFFFF", borderColor: "#DDD8CE" }}
                   >
@@ -203,7 +203,7 @@ export default function ProductionsPage() {
                 return (
                   <button
                     key={p.id}
-                    onClick={() => router.push(gate ? `/thinking-room/${p.id}` : `/library/${p.id}`)}
+                    onClick={() => router.push(gate ? `/studio/production/${p.id}` : `/library/${p.id}`)}
                     className="w-full text-left px-4 py-3 transition-colors hover:bg-black/[0.02]"
                     style={{ borderTop: i === 0 ? "none" : "1px solid #EAE6DF" }}
                   >
