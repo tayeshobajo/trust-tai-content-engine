@@ -7,6 +7,8 @@ import {
   type SceneOrchestration,
 } from "@/lib/world-bible"
 
+export const maxDuration = 300
+
 const openai = new OpenAI()
 
 function getSupabaseAdmin() {
@@ -46,6 +48,7 @@ export async function POST(req: NextRequest) {
       orchestration,
       referenceImages,
       previousShotUrl,
+      requireReferenceImages,
     } = (await req.json()) as {
       shotDescription?: string
       worldBibleContext?: string
@@ -57,13 +60,15 @@ export async function POST(req: NextRequest) {
       referenceImages?: string[]
       /** Previous shot's rendered frame URL — for sequential visual chaining. */
       previousShotUrl?: string
+      /** When true, fail instead of falling back to text-only generation if reference editing fails. */
+      requireReferenceImages?: boolean
     }
 
     if (!shotDescription?.trim()) {
       return NextResponse.json({ error: "Missing shotDescription" }, { status: 400 })
     }
 
-    const prompt = buildWorldBiblePrompt({
+    let prompt = buildWorldBiblePrompt({
       shotDescription,
       worldBibleContext,
       shotNumber,
@@ -80,6 +85,22 @@ export async function POST(req: NextRequest) {
     }
     if (previousShotUrl) {
       allRefUrls.push(previousShotUrl)
+    }
+
+    if (allRefUrls.length > 0) {
+      prompt = [
+        prompt,
+        "",
+        "CONTINUITY LOCK:",
+        "- The supplied image reference(s) are mandatory continuity evidence, not loose style inspiration.",
+        "- Preserve the same adult man across every shot: face, build, skin tone, hairline, wardrobe language, posture, and carried case.",
+        "- Preserve the same child whenever the child appears: age range, face, hair, skin tone, scale, and relationship to the man.",
+        "- Preserve the same case/container design and the same brass-and-stone world language.",
+        previousShotUrl
+          ? "- The previous shot reference is the visual bridge. This new frame must read as the next connected beat in the same film."
+          : "- Do not invent replacement protagonists, alternate children, or a different case.",
+        "- If the shot description does not show the child, keep the child out of frame rather than inventing a different one.",
+      ].join("\n")
     }
 
     let result: OpenAI.Images.ImagesResponse | null = null
@@ -105,6 +126,15 @@ export async function POST(req: NextRequest) {
         })
       } catch (editError) {
         console.error("[studio/render/image] images.edit() failed, falling back to generate:", editError)
+        if (requireReferenceImages) {
+          return NextResponse.json(
+            {
+              error: "Reference-aware image generation failed",
+              detail: editError instanceof Error ? editError.message : "images.edit() failed",
+            },
+            { status: 502 }
+          )
+        }
         result = null // Fall through to generate path
       }
     }

@@ -255,14 +255,13 @@ function RenderWorkspace() {
     }))
 
     try {
-      // Check against first available character ref
-      const firstRef = Object.values(characterRefs)[0]
       const response = await fetch("/api/studio/render/coherence-check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           frameUrl: shot.renderedImageUrl,
-          referenceUrl: firstRef,
+          referenceUrls: characterRefs,
+          previousFrameUrl: shot.previousShotUrl,
           shotNumber: shot.no,
           shotDescription: shot.description,
         }),
